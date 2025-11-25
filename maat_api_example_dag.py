@@ -52,7 +52,7 @@ def maat_api_example_dag():
         task_id='list_all_services',
         endpoint='/serviceInventoryManagement/v4.0.0/service',
         method='GET',
-        params={
+        query_params={
             'offset': 0,
             'limit': 10,
         }
@@ -131,7 +131,7 @@ def maat_api_example_dag():
         task_id='custom_api_call',
         endpoint='/serviceInventoryManagement/v4.0.0/service',
         method='GET',
-        params={
+        query_params={
             'limit': 5,
         },
         headers={

@@ -5,7 +5,7 @@ This operator provides integration with the Maat Management API,
 supporting operations for Service Inventory, Resource Inventory, and Listener Management.
 """
 
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
 import json
 import requests
 from requests.auth import HTTPBasicAuth
@@ -27,7 +27,7 @@ class MaatAPIOperator(BaseOperator):
     :param method: HTTP method (GET, POST, PATCH, DELETE)
     :param base_url: Base URL of the Maat API (default: https://192.168.64.7:8082)
     :param data: Request body data (for POST/PATCH requests)
-    :param params: Query parameters (for GET requests)
+    :param query_params: Query parameters (for GET requests)
     :param headers: Additional HTTP headers
     :param verify_ssl: Whether to verify SSL certificates (default: False)
     :param auth_user: Username for HTTP Basic Auth (optional)
@@ -36,8 +36,8 @@ class MaatAPIOperator(BaseOperator):
     :param do_xcom_push: Whether to push the response to XCom (default: True)
     """
 
-    template_fields = ('endpoint', 'data', 'params')
-    template_fields_renderers = {'data': 'json', 'params': 'json'}
+    template_fields = ('endpoint', 'data', 'query_params')
+    template_fields_renderers = {'data': 'json', 'query_params': 'json'}
     ui_color = '#4CAF50'
     ui_fgcolor = '#FFFFFF'
 
@@ -48,7 +48,7 @@ class MaatAPIOperator(BaseOperator):
         method: str = 'GET',
         base_url: str = 'https://192.168.64.7:8082',
         data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
+        query_params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
         verify_ssl: bool = False,
         auth_user: Optional[str] = None,
@@ -62,7 +62,7 @@ class MaatAPIOperator(BaseOperator):
         self.method = method.upper()
         self.base_url = base_url.rstrip('/')
         self.data = data
-        self.params = params or {}
+        self.query_params = query_params or {}
         self.headers = headers or {}
         self.verify_ssl = verify_ssl
         self.auth_user = auth_user
@@ -101,8 +101,8 @@ class MaatAPIOperator(BaseOperator):
         # Log the request
         self.log.info(f"Making {self.method} request to: {url}")
         self.log.info(f"Headers: {request_headers}")
-        if self.params:
-            self.log.info(f"Query params: {self.params}")
+        if self.query_params:
+            self.log.info(f"Query params: {self.query_params}")
         if self.data:
             self.log.info(f"Request body: {json.dumps(self.data, indent=2)}")
 
@@ -112,7 +112,7 @@ class MaatAPIOperator(BaseOperator):
                 method=self.method,
                 url=url,
                 json=self.data if self.data else None,
-                params=self.params,
+                params=self.query_params,
                 headers=request_headers,
                 auth=auth,
                 verify=self.verify_ssl,
@@ -189,33 +189,33 @@ class MaatServiceOperator(MaatAPIOperator):
             endpoint = '/serviceInventoryManagement/v4.0.0/service'
             method = 'GET'
             data = None
-            params = query_params or {}
+            qp = query_params or {}
         elif operation == 'create':
             endpoint = '/serviceInventoryManagement/v4.0.0/service'
             method = 'POST'
             data = service_data
-            params = {}
+            qp = {}
         elif operation == 'retrieve':
             if not service_id:
                 raise AirflowException("service_id is required for retrieve operation")
             endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
             method = 'GET'
             data = None
-            params = query_params or {}
+            qp = query_params or {}
         elif operation == 'update':
             if not service_id:
                 raise AirflowException("service_id is required for update operation")
             endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
             method = 'PATCH'
             data = service_data
-            params = {}
+            qp = {}
         elif operation == 'delete':
             if not service_id:
                 raise AirflowException("service_id is required for delete operation")
             endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
             method = 'DELETE'
             data = None
-            params = {}
+            qp = {}
         else:
             raise AirflowException(
                 f"Invalid operation: {operation}. Must be one of: list, create, retrieve, update, delete"
@@ -225,7 +225,7 @@ class MaatServiceOperator(MaatAPIOperator):
             endpoint=endpoint,
             method=method,
             data=data,
-            params=params,
+            query_params=qp,
             **kwargs
         )
 
@@ -256,33 +256,33 @@ class MaatResourceOperator(MaatAPIOperator):
             endpoint = '/resourceInventoryManagement/v4.0.0/resource'
             method = 'GET'
             data = None
-            params = query_params or {}
+            qp = query_params or {}
         elif operation == 'create':
             endpoint = '/resourceInventoryManagement/v4.0.0/resource'
             method = 'POST'
             data = resource_data
-            params = {}
+            qp = {}
         elif operation == 'retrieve':
             if not resource_id:
                 raise AirflowException("resource_id is required for retrieve operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
             method = 'GET'
             data = None
-            params = query_params or {}
+            qp = query_params or {}
         elif operation == 'update':
             if not resource_id:
                 raise AirflowException("resource_id is required for update operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
             method = 'PATCH'
             data = resource_data
-            params = {}
+            qp = {}
         elif operation == 'delete':
             if not resource_id:
                 raise AirflowException("resource_id is required for delete operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
             method = 'DELETE'
             data = None
-            params = {}
+            qp = {}
         else:
             raise AirflowException(
                 f"Invalid operation: {operation}. Must be one of: list, create, retrieve, update, delete"
@@ -292,7 +292,7 @@ class MaatResourceOperator(MaatAPIOperator):
             endpoint=endpoint,
             method=method,
             data=data,
-            params=params,
+            query_params=qp,
             **kwargs
         )
 
@@ -323,7 +323,7 @@ class MaatListenerOperator(MaatAPIOperator):
             endpoint = '/hub'
             method = 'GET'
             data = None
-            params = {}
+            qp = {}
         elif operation == 'register':
             if not callback_url:
                 raise AirflowException("callback_url is required for register operation")
@@ -332,21 +332,21 @@ class MaatListenerOperator(MaatAPIOperator):
             data = {'callback': callback_url}
             if query:
                 data['query'] = query
-            params = {}
+            qp = {}
         elif operation == 'retrieve':
             if not listener_id:
                 raise AirflowException("listener_id is required for retrieve operation")
             endpoint = f'/hub/{listener_id}'
             method = 'GET'
             data = None
-            params = {}
+            qp = {}
         elif operation == 'unregister':
             if not listener_id:
                 raise AirflowException("listener_id is required for unregister operation")
             endpoint = f'/hub/{listener_id}'
             method = 'DELETE'
             data = None
-            params = {}
+            qp = {}
         else:
             raise AirflowException(
                 f"Invalid operation: {operation}. Must be one of: list, register, retrieve, unregister"
@@ -356,7 +356,7 @@ class MaatListenerOperator(MaatAPIOperator):
             endpoint=endpoint,
             method=method,
             data=data,
-            params=params,
+            query_params=qp,
             **kwargs
         )
 """Custom Airflow operators for netdevops workflows."""
