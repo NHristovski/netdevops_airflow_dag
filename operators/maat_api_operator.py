@@ -1,0 +1,367 @@
+"""
+Maat Management API Operator for Apache Airflow.
+
+This operator provides integration with the Maat Management API,
+supporting operations for Service Inventory, Resource Inventory, and Listener Management.
+"""
+
+from typing import Any, Dict, Optional, List
+import json
+import requests
+from requests.auth import HTTPBasicAuth
+
+from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException
+
+
+class MaatAPIOperator(BaseOperator):
+    """
+    Custom operator to interact with Maat Management API.
+
+    This operator supports all CRUD operations for:
+    - Service Inventory Management
+    - Resource Inventory Management
+    - Listener Inventory Management
+
+    :param endpoint: API endpoint path (e.g., '/serviceInventoryManagement/v4.0.0/service')
+    :param method: HTTP method (GET, POST, PATCH, DELETE)
+    :param base_url: Base URL of the Maat API (default: https://192.168.64.7:8082)
+    :param data: Request body data (for POST/PATCH requests)
+    :param params: Query parameters (for GET requests)
+    :param headers: Additional HTTP headers
+    :param verify_ssl: Whether to verify SSL certificates (default: False)
+    :param auth_user: Username for HTTP Basic Auth (optional)
+    :param auth_password: Password for HTTP Basic Auth (optional)
+    :param response_check: Optional callable to validate response
+    :param do_xcom_push: Whether to push the response to XCom (default: True)
+    """
+
+    template_fields = ('endpoint', 'data', 'params')
+    template_fields_renderers = {'data': 'json', 'params': 'json'}
+    ui_color = '#4CAF50'
+    ui_fgcolor = '#FFFFFF'
+
+    def __init__(
+        self,
+        *,
+        endpoint: str,
+        method: str = 'GET',
+        base_url: str = 'https://192.168.64.7:8082',
+        data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        verify_ssl: bool = False,
+        auth_user: Optional[str] = None,
+        auth_password: Optional[str] = None,
+        response_check: Optional[callable] = None,
+        do_xcom_push: bool = True,
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+        self.endpoint = endpoint
+        self.method = method.upper()
+        self.base_url = base_url.rstrip('/')
+        self.data = data
+        self.params = params or {}
+        self.headers = headers or {}
+        self.verify_ssl = verify_ssl
+        self.auth_user = auth_user
+        self.auth_password = auth_password
+        self.response_check = response_check
+        self.do_xcom_push = do_xcom_push
+
+        # Validate method
+        valid_methods = ['GET', 'POST', 'PATCH', 'DELETE']
+        if self.method not in valid_methods:
+            raise AirflowException(
+                f"Invalid HTTP method: {self.method}. Must be one of {valid_methods}"
+            )
+
+    def execute(self, context: Dict[str, Any]) -> Any:
+        """
+        Execute the HTTP request to Maat API.
+
+        :param context: Airflow task context
+        :return: Response data (JSON if applicable, otherwise text)
+        """
+        url = f"{self.base_url}{self.endpoint}"
+
+        # Set default headers
+        request_headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        }
+        request_headers.update(self.headers)
+
+        # Prepare authentication
+        auth = None
+        if self.auth_user and self.auth_password:
+            auth = HTTPBasicAuth(self.auth_user, self.auth_password)
+
+        # Log the request
+        self.log.info(f"Making {self.method} request to: {url}")
+        self.log.info(f"Headers: {request_headers}")
+        if self.params:
+            self.log.info(f"Query params: {self.params}")
+        if self.data:
+            self.log.info(f"Request body: {json.dumps(self.data, indent=2)}")
+
+        try:
+            # Make the HTTP request
+            response = requests.request(
+                method=self.method,
+                url=url,
+                json=self.data if self.data else None,
+                params=self.params,
+                headers=request_headers,
+                auth=auth,
+                verify=self.verify_ssl,
+                timeout=60
+            )
+
+            # Log response
+            self.log.info(f"Response status code: {response.status_code}")
+            self.log.info(f"Response headers: {dict(response.headers)}")
+
+            # Check for HTTP errors
+            try:
+                response.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                self.log.error(f"HTTP Error: {e}")
+                self.log.error(f"Response body: {response.text}")
+                raise AirflowException(
+                    f"HTTP {response.status_code} error from Maat API: {response.text}"
+                )
+
+            # Parse response
+            response_data = None
+            if response.text:
+                try:
+                    response_data = response.json()
+                    self.log.info(f"Response JSON: {json.dumps(response_data, indent=2)}")
+                except json.JSONDecodeError:
+                    response_data = response.text
+                    self.log.info(f"Response text: {response_data}")
+            else:
+                self.log.info("Empty response body")
+                response_data = {"status": "success", "status_code": response.status_code}
+
+            # Custom response validation
+            if self.response_check and not self.response_check(response_data):
+                raise AirflowException("Response check failed")
+
+            return response_data
+
+        except requests.exceptions.ConnectionError as e:
+            self.log.error(f"Connection error: {e}")
+            raise AirflowException(f"Failed to connect to Maat API at {url}: {e}")
+        except requests.exceptions.Timeout as e:
+            self.log.error(f"Request timeout: {e}")
+            raise AirflowException(f"Request to Maat API timed out: {e}")
+        except requests.exceptions.RequestException as e:
+            self.log.error(f"Request error: {e}")
+            raise AirflowException(f"Request to Maat API failed: {e}")
+
+
+class MaatServiceOperator(MaatAPIOperator):
+    """
+    Specialized operator for Service Inventory Management operations.
+
+    :param service_id: Service ID (required for retrieve, update, delete operations)
+    :param operation: Operation type ('list', 'create', 'retrieve', 'update', 'delete')
+    :param service_data: Service data (for create/update operations)
+    :param query_params: Query parameters (for list/retrieve operations)
+    """
+
+    def __init__(
+        self,
+        *,
+        operation: str,
+        service_id: Optional[str] = None,
+        service_data: Optional[Dict[str, Any]] = None,
+        query_params: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> None:
+        # Determine endpoint and method based on operation
+        operation = operation.lower()
+
+        if operation == 'list':
+            endpoint = '/serviceInventoryManagement/v4.0.0/service'
+            method = 'GET'
+            data = None
+            params = query_params or {}
+        elif operation == 'create':
+            endpoint = '/serviceInventoryManagement/v4.0.0/service'
+            method = 'POST'
+            data = service_data
+            params = None
+        elif operation == 'retrieve':
+            if not service_id:
+                raise AirflowException("service_id is required for retrieve operation")
+            endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
+            method = 'GET'
+            data = None
+            params = query_params or {}
+        elif operation == 'update':
+            if not service_id:
+                raise AirflowException("service_id is required for update operation")
+            endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
+            method = 'PATCH'
+            data = service_data
+            params = None
+        elif operation == 'delete':
+            if not service_id:
+                raise AirflowException("service_id is required for delete operation")
+            endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
+            method = 'DELETE'
+            data = None
+            params = None
+        else:
+            raise AirflowException(
+                f"Invalid operation: {operation}. Must be one of: list, create, retrieve, update, delete"
+            )
+
+        super().__init__(
+            endpoint=endpoint,
+            method=method,
+            data=data,
+            params=params,
+            **kwargs
+        )
+
+
+class MaatResourceOperator(MaatAPIOperator):
+    """
+    Specialized operator for Resource Inventory Management operations.
+
+    :param resource_id: Resource ID (required for retrieve, update, delete operations)
+    :param operation: Operation type ('list', 'create', 'retrieve', 'update', 'delete')
+    :param resource_data: Resource data (for create/update operations)
+    :param query_params: Query parameters (for list/retrieve operations)
+    """
+
+    def __init__(
+        self,
+        *,
+        operation: str,
+        resource_id: Optional[str] = None,
+        resource_data: Optional[Dict[str, Any]] = None,
+        query_params: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> None:
+        # Determine endpoint and method based on operation
+        operation = operation.lower()
+
+        if operation == 'list':
+            endpoint = '/resourceInventoryManagement/v4.0.0/resource'
+            method = 'GET'
+            data = None
+            params = query_params or {}
+        elif operation == 'create':
+            endpoint = '/resourceInventoryManagement/v4.0.0/resource'
+            method = 'POST'
+            data = resource_data
+            params = None
+        elif operation == 'retrieve':
+            if not resource_id:
+                raise AirflowException("resource_id is required for retrieve operation")
+            endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
+            method = 'GET'
+            data = None
+            params = query_params or {}
+        elif operation == 'update':
+            if not resource_id:
+                raise AirflowException("resource_id is required for update operation")
+            endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
+            method = 'PATCH'
+            data = resource_data
+            params = None
+        elif operation == 'delete':
+            if not resource_id:
+                raise AirflowException("resource_id is required for delete operation")
+            endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
+            method = 'DELETE'
+            data = None
+            params = None
+        else:
+            raise AirflowException(
+                f"Invalid operation: {operation}. Must be one of: list, create, retrieve, update, delete"
+            )
+
+        super().__init__(
+            endpoint=endpoint,
+            method=method,
+            data=data,
+            params=params,
+            **kwargs
+        )
+
+
+class MaatListenerOperator(MaatAPIOperator):
+    """
+    Specialized operator for Listener Management operations.
+
+    :param listener_id: Listener ID (required for retrieve, delete operations)
+    :param operation: Operation type ('list', 'register', 'retrieve', 'unregister')
+    :param callback_url: Callback URL (required for register operation)
+    :param query: Query string (optional for register operation)
+    """
+
+    def __init__(
+        self,
+        *,
+        operation: str,
+        listener_id: Optional[str] = None,
+        callback_url: Optional[str] = None,
+        query: Optional[str] = None,
+        **kwargs
+    ) -> None:
+        # Determine endpoint and method based on operation
+        operation = operation.lower()
+
+        if operation == 'list':
+            endpoint = '/hub'
+            method = 'GET'
+            data = None
+            params = None
+        elif operation == 'register':
+            if not callback_url:
+                raise AirflowException("callback_url is required for register operation")
+            endpoint = '/hub'
+            method = 'POST'
+            data = {'callback': callback_url}
+            if query:
+                data['query'] = query
+            params = None
+        elif operation == 'retrieve':
+            if not listener_id:
+                raise AirflowException("listener_id is required for retrieve operation")
+            endpoint = f'/hub/{listener_id}'
+            method = 'GET'
+            data = None
+            params = None
+        elif operation == 'unregister':
+            if not listener_id:
+                raise AirflowException("listener_id is required for unregister operation")
+            endpoint = f'/hub/{listener_id}'
+            method = 'DELETE'
+            data = None
+            params = None
+        else:
+            raise AirflowException(
+                f"Invalid operation: {operation}. Must be one of: list, register, retrieve, unregister"
+            )
+
+        super().__init__(
+            endpoint=endpoint,
+            method=method,
+            data=data,
+            params=params,
+            **kwargs
+        )
+"""Custom Airflow operators for netdevops workflows."""
+
+from operators.maat_api_operator import MaatAPIOperator
+
+__all__ = ['MaatAPIOperator']
+
