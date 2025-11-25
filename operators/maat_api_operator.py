@@ -194,7 +194,7 @@ class MaatServiceOperator(MaatAPIOperator):
             endpoint = '/serviceInventoryManagement/v4.0.0/service'
             method = 'POST'
             data = service_data
-            params = None
+            params = {}
         elif operation == 'retrieve':
             if not service_id:
                 raise AirflowException("service_id is required for retrieve operation")
@@ -208,14 +208,14 @@ class MaatServiceOperator(MaatAPIOperator):
             endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
             method = 'PATCH'
             data = service_data
-            params = None
+            params = {}
         elif operation == 'delete':
             if not service_id:
                 raise AirflowException("service_id is required for delete operation")
             endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
             method = 'DELETE'
             data = None
-            params = None
+            params = {}
         else:
             raise AirflowException(
                 f"Invalid operation: {operation}. Must be one of: list, create, retrieve, update, delete"
@@ -261,7 +261,7 @@ class MaatResourceOperator(MaatAPIOperator):
             endpoint = '/resourceInventoryManagement/v4.0.0/resource'
             method = 'POST'
             data = resource_data
-            params = None
+            params = {}
         elif operation == 'retrieve':
             if not resource_id:
                 raise AirflowException("resource_id is required for retrieve operation")
@@ -275,14 +275,14 @@ class MaatResourceOperator(MaatAPIOperator):
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
             method = 'PATCH'
             data = resource_data
-            params = None
+            params = {}
         elif operation == 'delete':
             if not resource_id:
                 raise AirflowException("resource_id is required for delete operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
             method = 'DELETE'
             data = None
-            params = None
+            params = {}
         else:
             raise AirflowException(
                 f"Invalid operation: {operation}. Must be one of: list, create, retrieve, update, delete"
@@ -323,7 +323,7 @@ class MaatListenerOperator(MaatAPIOperator):
             endpoint = '/hub'
             method = 'GET'
             data = None
-            params = None
+            params = {}
         elif operation == 'register':
             if not callback_url:
                 raise AirflowException("callback_url is required for register operation")
@@ -332,21 +332,21 @@ class MaatListenerOperator(MaatAPIOperator):
             data = {'callback': callback_url}
             if query:
                 data['query'] = query
-            params = None
+            params = {}
         elif operation == 'retrieve':
             if not listener_id:
                 raise AirflowException("listener_id is required for retrieve operation")
             endpoint = f'/hub/{listener_id}'
             method = 'GET'
             data = None
-            params = None
+            params = {}
         elif operation == 'unregister':
             if not listener_id:
                 raise AirflowException("listener_id is required for unregister operation")
             endpoint = f'/hub/{listener_id}'
             method = 'DELETE'
             data = None
-            params = None
+            params = {}
         else:
             raise AirflowException(
                 f"Invalid operation: {operation}. Must be one of: list, register, retrieve, unregister"
