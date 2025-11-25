@@ -25,7 +25,7 @@ class MaatAPIOperator(BaseOperator):
 
     :param endpoint: API endpoint path (e.g., '/serviceInventoryManagement/v4.0.0/service')
     :param method: HTTP method (GET, POST, PATCH, DELETE)
-    :param base_url: Base URL of the Maat API (default: https://192.168.64.7:8082)
+    :param base_url: Base URL of the Maat API (default: http://192.168.64.7:8080)
     :param data: Request body data (for POST/PATCH requests)
     :param query_params: Query parameters (for GET requests)
     :param headers: Additional HTTP headers
@@ -46,7 +46,7 @@ class MaatAPIOperator(BaseOperator):
         *,
         endpoint: str,
         method: str = 'GET',
-        base_url: str = 'https://192.168.64.7:8082',
+        base_url: str = 'http://192.168.64.7:8080',
         data: Optional[Dict[str, Any]] = None,
         query_params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
