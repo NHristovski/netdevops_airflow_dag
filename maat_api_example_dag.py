@@ -63,10 +63,17 @@ def maat_api_example_dag():
         task_id='create_service',
         operation='create',
         service_data={
-            'name': 'example-service',
+            'category': 'network.core.sap',
             'description': 'Service created by Airflow',
-            'serviceType': 'network-service',
-            'state': 'active'
+            'name': 'airflow_example_service',
+            'serviceCharacteristic': [
+                {
+                    'name': 'inet',
+                    'value': '192.168.100.1/28'
+                }
+            ],
+            '@schemaLocation': 'https://bitbucket.software.geant.org/projects/OSSBSS/repos/maat-schema/raw/TMF638-ServiceInventory-v4-pionier.json',
+            '@type': 'Service'
         }
     )
 
@@ -85,7 +92,6 @@ def maat_api_example_dag():
         operation='update',
         service_id='{{ ti.xcom_pull(task_ids="create_service")["id"] }}',
         service_data={
-            'state': 'inactive',
             'description': 'Service updated by Airflow'
         }
     )
@@ -105,10 +111,18 @@ def maat_api_example_dag():
         task_id='create_resource',
         operation='create',
         resource_data={
-            'name': 'example-resource',
+            'category': 'device.switch',
             'description': 'Resource created by Airflow',
-            'resourceType': 'physical',
-            'resourceStatus': 'available'
+            'name': 'airflow-test-switch',
+            'resourceCharacteristic': [
+                {
+                    'name': 'interface',
+                    'value': 'ae1'
+                }
+            ],
+            '@schemaLocation': 'https://bitbucket.software.geant.org/projects/OSSBSS/repos/maat-schema/raw/TMF639-ResourceInventory-v4-pionier.json',
+            '@type': 'PhysicalResource',
+            'serialNumber': 'AFL-12345'
         }
     )
 
@@ -116,8 +130,8 @@ def maat_api_example_dag():
     register_listener = MaatListenerOperator(
         task_id='register_listener',
         operation='register',
-        callback_url='http://example.com/webhook',
-        query='eventType=service.created'
+        callback_url='http://localhost:8081/eventlistener'
+        # query parameter is optional, can be set to filter specific events
     )
 
     # Example 8: List listeners
