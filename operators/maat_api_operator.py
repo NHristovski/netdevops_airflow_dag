@@ -36,7 +36,7 @@ class MaatAPIOperator(BaseOperator):
     :param do_xcom_push: Whether to push the response to XCom (default: True)
     """
 
-    template_fields = ('endpoint', 'data', 'query_params')
+    template_fields = ('endpoint', 'method', 'data', 'query_params')
     template_fields_renderers = {'data': 'json', 'query_params': 'json'}
     ui_color = '#4CAF50'
     ui_fgcolor = '#FFFFFF'
@@ -59,7 +59,7 @@ class MaatAPIOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.endpoint = endpoint
-        self.method = method.upper()
+        self.method = method.upper() if not method.startswith('{{') else method
         self.base_url = base_url.rstrip('/')
         self.data = data
         self.query_params = query_params or {}
@@ -70,13 +70,6 @@ class MaatAPIOperator(BaseOperator):
         self.response_check = response_check
         self.do_xcom_push = do_xcom_push
 
-        # Validate method
-        valid_methods = ['GET', 'POST', 'PATCH', 'DELETE']
-        if self.method not in valid_methods:
-            raise AirflowException(
-                f"Invalid HTTP method: {self.method}. Must be one of {valid_methods}"
-            )
-
     def execute(self, context: Dict[str, Any]) -> Any:
         """
         Execute the HTTP request to Maat API.
@@ -84,6 +77,14 @@ class MaatAPIOperator(BaseOperator):
         :param context: Airflow task context
         :return: Response data (JSON if applicable, otherwise text)
         """
+        # Validate method after templating
+        method = self.method.upper()
+        valid_methods = ['GET', 'POST', 'PATCH', 'DELETE']
+        if method not in valid_methods:
+            raise AirflowException(
+                f"Invalid HTTP method: {method}. Must be one of {valid_methods}"
+            )
+
         url = f"{self.base_url}{self.endpoint}"
 
         # Set default headers
@@ -99,7 +100,7 @@ class MaatAPIOperator(BaseOperator):
             auth = HTTPBasicAuth(self.auth_user, self.auth_password)
 
         # Log the request
-        self.log.info(f"Making {self.method} request to: {url}")
+        self.log.info(f"Making {method} request to: {url}")
         self.log.info(f"Headers: {request_headers}")
         if self.query_params:
             self.log.info(f"Query params: {self.query_params}")
@@ -109,7 +110,7 @@ class MaatAPIOperator(BaseOperator):
         try:
             # Make the HTTP request
             response = requests.request(
-                method=self.method,
+                method=method,
                 url=url,
                 json=self.data if self.data else None,
                 params=self.query_params,

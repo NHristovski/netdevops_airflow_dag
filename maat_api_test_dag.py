@@ -40,7 +40,7 @@ def maat_api_test_dag():
         task_id='test_get_services',
         endpoint='{{ params.endpoint }}',
         method='{{ params.method }}',
-        params={
+        query_params={
             'offset': 0,
             'limit': 5,
         }
