@@ -87,6 +87,8 @@ def import_data_to_maat():
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_resource')
 
+        print(f'The result after xcom_pull: {result}')
+
         print(f'HTTP Status Code: {result.http_status_code}')
 
         # Check if it's a 404 error
