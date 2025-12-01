@@ -97,8 +97,7 @@ def initial_maat_setup():
     retrieve_second_router = MaatResourceOperator(
         task_id='retrieve_second_router',
         operation=OperationType.GET_BY_NAME,
-        resource_name='srlinux-leaf2',
-        trigger_rule='none_failed_min_one_success'
+        resource_name='srlinux-leaf2'
     )
 
     @task.branch
@@ -183,10 +182,12 @@ def initial_maat_setup():
     skip_second_router = skip_second_router_creation()
 
     # Define task dependencies
+    # First router branch
     retrieve_first_router >> check_first_router
-    check_first_router >> create_first_router >> retrieve_second_router
-    check_first_router >> skip_first_router >> retrieve_second_router
+    check_first_router >> create_first_router
+    check_first_router >> skip_first_router
 
+    # Second router branch
     retrieve_second_router >> check_second_router
     check_second_router >> create_second_router
     check_second_router >> skip_second_router
