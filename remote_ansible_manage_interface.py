@@ -236,12 +236,13 @@ def ssh_remote_ansible_dag():
 
     update_maat_task = update_router_interface()
 
-    @task.branch
+    @task.branch(trigger_rule='all_done')
     def check_update_result(**context):
         """
         Check if Maat update was successful.
         If update failed or result is missing, trigger rollback.
         Otherwise, end gracefully.
+        This task runs regardless of whether update_maat_task succeeds or fails.
         """
         ti = context['ti']
         update_result = ti.xcom_pull(task_ids='update_router_interface')
