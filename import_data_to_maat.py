@@ -10,7 +10,7 @@ import logging
 logging.getLogger('airflow.sdk._shared.secrets_masker.secrets_masker').setLevel(logging.ERROR)
 
 @dag(
-    dag_id='import_data_to_maat',
+    dag_id='initial_maat_setup',
     start_date=datetime(2025, 12, 1),
     schedule=None,
     catchup=False,
@@ -23,7 +23,7 @@ logging.getLogger('airflow.sdk._shared.secrets_masker.secrets_masker').setLevel(
     """,
     tags=['maat', 'setup']
 )
-def import_data_to_maat():
+def initial_maat_setup():
 
     retrieve_first_router = MaatResourceOperator(
         task_id='retrieve_first_router',
@@ -192,4 +192,4 @@ def import_data_to_maat():
     check_second_router >> skip_second_router
 
 # Instantiate the DAG
-dag_instance = import_data_to_maat()
+dag_instance = initial_maat_setup()
