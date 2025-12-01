@@ -15,7 +15,9 @@ from datetime import datetime
 from operators.maat_api_operator import (
     MaatAPIOperator,
     MaatServiceOperator,
-    MaatResourceOperator
+    MaatResourceOperator,
+    HTTPMethod,
+    OperationType
 )
 
 
@@ -50,7 +52,7 @@ def maat_api_example_dag():
     list_services = MaatAPIOperator(
         task_id='list_all_services',
         endpoint='/serviceInventoryManagement/v4.0.0/service',
-        method='GET',
+        method=HTTPMethod.GET,
         query_params={
             'offset': 0,
             'limit': 10,
@@ -60,7 +62,7 @@ def maat_api_example_dag():
     # Example 2: Create a new service using specialized operator
     create_service = MaatServiceOperator(
         task_id='create_service',
-        operation='create',
+        operation=OperationType.CREATE,
         service_data={
             'category': 'network.core.sap',
             'description': 'Service created by Airflow',
@@ -80,7 +82,7 @@ def maat_api_example_dag():
     # Note: In a real scenario, you'd use XCom to get the ID from create_service
     retrieve_service = MaatServiceOperator(
         task_id='retrieve_service',
-        operation='retrieve',
+        operation=OperationType.RETRIEVE,
         service_id='{{ ti.xcom_pull(task_ids="create_service")["id"] }}',  # Get ID from previous task
         query_params={}
     )
@@ -88,7 +90,7 @@ def maat_api_example_dag():
     # Example 4: Update a service
     update_service = MaatServiceOperator(
         task_id='update_service',
-        operation='update',
+        operation=OperationType.UPDATE,
         service_id='{{ ti.xcom_pull(task_ids="create_service")["id"] }}',
         service_data={
             'description': 'Service updated by Airflow'
@@ -98,7 +100,7 @@ def maat_api_example_dag():
     # Example 5: List all resources
     list_resources = MaatResourceOperator(
         task_id='list_all_resources',
-        operation='list',
+        operation=OperationType.LIST,
         query_params={
             'offset': 0,
             'limit': 10,
@@ -108,7 +110,7 @@ def maat_api_example_dag():
     # Example 6: Create a resource
     create_resource = MaatResourceOperator(
         task_id='create_resource',
-        operation='create',
+        operation=OperationType.CREATE,
         resource_data={
             'category': 'device.switch',
             'description': 'Resource created by Airflow',
@@ -129,7 +131,7 @@ def maat_api_example_dag():
     custom_api_call = MaatAPIOperator(
         task_id='custom_api_call',
         endpoint='/serviceInventoryManagement/v4.0.0/service',
-        method='GET',
+        method=HTTPMethod.GET,
         query_params={
             'limit': 5,
         },
@@ -141,7 +143,7 @@ def maat_api_example_dag():
     # Example 10: Delete service (cleanup)
     delete_service = MaatServiceOperator(
         task_id='delete_service',
-        operation='delete',
+        operation=OperationType.DELETE,
         service_id='{{ ti.xcom_pull(task_ids="create_service")["id"] }}'
     )
 

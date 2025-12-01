@@ -6,7 +6,12 @@ This DAG performs basic operations to verify the operator is working correctly.
 
 from airflow.sdk import dag, Param
 from datetime import datetime
-from operators.maat_api_operator import MaatAPIOperator, MaatServiceOperator
+from operators.maat_api_operator import (
+    MaatAPIOperator,
+    MaatServiceOperator,
+    HTTPMethod,
+    OperationType
+)
 
 
 @dag(
@@ -23,9 +28,9 @@ from operators.maat_api_operator import MaatAPIOperator, MaatServiceOperator
             description='API endpoint to test'
         ),
         'method': Param(
-            default='GET',
+            default=HTTPMethod.GET,
             type='string',
-            enum=['GET', 'POST', 'PATCH', 'DELETE'],
+            enum=[m.value for m in HTTPMethod],
             description='HTTP method'
         )
     }
@@ -49,7 +54,7 @@ def maat_api_test_dag():
     # Test 2: Using specialized operator
     test_list_services = MaatServiceOperator(
         task_id='test_list_services',
-        operation='list',
+        operation=OperationType.LIST,
         query_params={
             'offset': 0,
             'limit': 10,

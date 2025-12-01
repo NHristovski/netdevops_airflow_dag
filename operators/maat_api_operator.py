@@ -6,12 +6,31 @@ supporting operations for Resource and Service Inventory Management.
 """
 
 from typing import Any, Dict, Optional
+from enum import Enum
 import json
 import time
 import requests
 
 from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException
+
+
+class HTTPMethod(str, Enum):
+    """Supported HTTP methods for Maat API."""
+    GET = 'GET'
+    POST = 'POST'
+    PATCH = 'PATCH'
+    DELETE = 'DELETE'
+
+
+class OperationType(str, Enum):
+    """Supported operation types for Maat API."""
+    LIST = 'list'
+    CREATE = 'create'
+    RETRIEVE = 'retrieve'
+    GET_BY_NAME = 'get_by_name'
+    UPDATE = 'update'
+    DELETE = 'delete'
 
 
 class MaatAPIOperator(BaseOperator):
@@ -70,13 +89,7 @@ class MaatAPIOperator(BaseOperator):
         :param context: Airflow task context
         :return: Response data (JSON if applicable, otherwise text)
         """
-        # Validate method after templating
         method = self.method.upper()
-        valid_methods = ['GET', 'POST', 'PATCH', 'DELETE']
-        if method not in valid_methods:
-            raise AirflowException(
-                f"Invalid HTTP method: {method}. Must be one of {valid_methods}"
-            )
 
         url = f"{self.base_url}{self.endpoint}"
 
@@ -194,40 +207,41 @@ class MaatServiceOperator(MaatAPIOperator):
         # Determine endpoint and method based on operation
         operation = operation.lower()
 
-        if operation == 'list':
+        if operation == OperationType.LIST:
             endpoint = '/serviceInventoryManagement/v4.0.0/service'
-            method = 'GET'
+            method = HTTPMethod.GET
             data = None
             qp = query_params or {}
-        elif operation == 'create':
+        elif operation == OperationType.CREATE:
             endpoint = '/serviceInventoryManagement/v4.0.0/service'
-            method = 'POST'
+            method = HTTPMethod.POST
             data = service_data
             qp = {}
-        elif operation == 'retrieve':
+        elif operation == OperationType.RETRIEVE:
             if not service_id:
                 raise AirflowException("service_id is required for retrieve operation")
             endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
-            method = 'GET'
+            method = HTTPMethod.GET
             data = None
             qp = query_params or {}
-        elif operation == 'update':
+        elif operation == OperationType.UPDATE:
             if not service_id:
                 raise AirflowException("service_id is required for update operation")
             endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
-            method = 'PATCH'
+            method = HTTPMethod.PATCH
             data = service_data
             qp = {}
-        elif operation == 'delete':
+        elif operation == OperationType.DELETE:
             if not service_id:
                 raise AirflowException("service_id is required for delete operation")
             endpoint = f'/serviceInventoryManagement/v4.0.0/service/{service_id}'
-            method = 'DELETE'
+            method = HTTPMethod.DELETE
             data = None
             qp = {}
         else:
+            valid_operations = [op for op in OperationType if op != OperationType.GET_BY_NAME]
             raise AirflowException(
-                f"Invalid operation: {operation}. Must be one of: list, create, retrieve, update, delete"
+                f"Invalid operation: {operation}. Must be one of: {[op.value for op in valid_operations]}"
             )
 
         super().__init__(
@@ -262,47 +276,48 @@ class MaatResourceOperator(MaatAPIOperator):
         # Determine endpoint and method based on operation
         operation = operation.lower()
 
-        if operation == 'list':
+        if operation == OperationType.LIST:
             endpoint = '/resourceInventoryManagement/v4.0.0/resource'
-            method = 'GET'
+            method = HTTPMethod.GET
             data = None
             qp = query_params or {}
-        elif operation == 'create':
+        elif operation == OperationType.CREATE:
             endpoint = '/resourceInventoryManagement/v4.0.0/resource'
-            method = 'POST'
+            method = HTTPMethod.POST
             data = resource_data
             qp = {}
-        elif operation == 'get_by_name':
+        elif operation == OperationType.GET_BY_NAME:
             if not resource_name:
                 raise AirflowException("resource_name is required for get_by_name operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource?name={resource_name}'
-            method = 'GET'
+            method = HTTPMethod.GET
             data = None
             qp = query_params or {}
-        elif operation == 'retrieve':
+        elif operation == OperationType.RETRIEVE:
             if not resource_id:
                 raise AirflowException("resource_id is required for retrieve operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
-            method = 'GET'
+            method = HTTPMethod.GET
             data = None
             qp = query_params or {}
-        elif operation == 'update':
+        elif operation == OperationType.UPDATE:
             if not resource_id:
                 raise AirflowException("resource_id is required for update operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
-            method = 'PATCH'
+            method = HTTPMethod.PATCH
             data = resource_data
             qp = {}
-        elif operation == 'delete':
+        elif operation == OperationType.DELETE:
             if not resource_id:
                 raise AirflowException("resource_id is required for delete operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource/{resource_id}'
-            method = 'DELETE'
+            method = HTTPMethod.DELETE
             data = None
             qp = {}
         else:
+            valid_operations = [op for op in OperationType]
             raise AirflowException(
-                f"Invalid operation: {operation}. Must be one of: list, create, retrieve, update, delete"
+                f"Invalid operation: {operation}. Must be one of: {[op.value for op in valid_operations]}"
             )
 
         super().__init__(

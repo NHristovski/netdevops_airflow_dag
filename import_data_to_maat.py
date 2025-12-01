@@ -1,7 +1,8 @@
 from airflow.sdk import dag, task
 from datetime import datetime
 from operators.maat_api_operator import (
-    MaatResourceOperator
+    MaatResourceOperator,
+    OperationType
 )
 import logging
 
@@ -26,7 +27,7 @@ def import_data_to_maat():
 
     list_resources = MaatResourceOperator(
         task_id='list_all_resources',
-        operation='list',
+        operation=OperationType.LIST,
         query_params={
             'offset': 0,
             'limit': 10,
@@ -35,7 +36,7 @@ def import_data_to_maat():
 
     retrieve_resource = MaatResourceOperator(
         task_id='retrieve_resource',
-        operation='get_by_name',
+        operation=OperationType.GET_BY_NAME,
         resource_name='srlinux-leaf1'
     )
 
@@ -72,7 +73,7 @@ def import_data_to_maat():
     # Task to create the resource (only runs if 404)
     create_resource = MaatResourceOperator(
         task_id='create_resource',
-        operation='create',
+        operation=OperationType.CREATE,
         resource_data={
             "category": "device.router",
             "description": "Nokia SRLinux Router - leaf1",
@@ -108,7 +109,7 @@ def import_data_to_maat():
 
     retrieve_second_resource = MaatResourceOperator(
         task_id='retrieve_second_resource',
-        operation='get_by_name',
+        operation=OperationType.GET_BY_NAME,
         resource_name='srlinux-leaf2',
         trigger_rule='none_failed_min_one_success'  # Run if any upstream task succeeds
     )
@@ -149,7 +150,7 @@ def import_data_to_maat():
 
     create_second_resource = MaatResourceOperator(
         task_id='create_second_resource',
-        operation='create',
+        operation=OperationType.CREATE,
         resource_data={
             "category": "device.router",
             "description": "Nokia SRLinux Router - leaf2",
