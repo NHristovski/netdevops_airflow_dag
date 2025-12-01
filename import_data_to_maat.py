@@ -35,8 +35,8 @@ def import_data_to_maat():
 
     retrieve_resource = MaatResourceOperator(
         task_id='retrieve_resource',
-        operation='retrieve',
-        resource_id='srlinux-leaf1'
+        operation='get_by_name',
+        resource_name='srlinux-leaf1'
     )
 
     # Branching task to decide whether to create resource or skip

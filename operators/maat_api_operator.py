@@ -254,6 +254,7 @@ class MaatResourceOperator(MaatAPIOperator):
         *,
         operation: str,
         resource_id: Optional[str] = None,
+        resource_name: Optional[str] = None,
         resource_data: Optional[Dict[str, Any]] = None,
         query_params: Optional[Dict[str, Any]] = None,
         **kwargs
@@ -271,6 +272,13 @@ class MaatResourceOperator(MaatAPIOperator):
             method = 'POST'
             data = resource_data
             qp = {}
+        elif operation == 'get_by_name':
+            if not resource_name:
+                raise AirflowException("resource_name is required for get_by_name operation")
+            endpoint = f'/resourceInventoryManagement/v4.0.0/resource/?name={resource_name}'
+            method = 'GET'
+            data = None
+            qp = query_params or {}
         elif operation == 'retrieve':
             if not resource_id:
                 raise AirflowException("resource_id is required for retrieve operation")
