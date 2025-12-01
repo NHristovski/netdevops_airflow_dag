@@ -35,3 +35,9 @@ def import_data_to_maat():
         operation='retrieve',
         resource_id='srlinux-leaf1',
     )
+
+    # Define task dependencies
+    list_resources >> find_resource
+
+# Instantiate the DAG
+dag_instance = import_data_to_maat()
