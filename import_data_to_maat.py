@@ -43,30 +43,29 @@ def import_data_to_maat():
     @task.branch
     def check_resource_status(**context):
         """
-        Check if resource was found or not (404).
-        If 404, proceed to create_resource.
-        Otherwise, skip to end_task.
+        Check if resource was found or not.
+        If response list is empty, proceed to create_resource.
+        Otherwise, skip to skip_first_creation.
         """
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_resource')
 
         print('Retrieved resource result:', result)
 
-        print(f'Full response is: {result.get('response')}')
-
-        print(f'response size is: {len(result.get('response'))}')
-
-        http_status_code = result.get('http_status_code') if result else None
-
-        print(f'HTTP Status Code: {http_status_code}')
-
-        # Check if it's a 404 error
-        if http_status_code == 404:
-            print("Resource not found (404), will create it")
-            return 'create_resource'
+        # Check if result exists and has a 'response' key
+        if result and 'response' in result:
+            response_list = result.get('response')
+            if response_list is not None:
+                if len(response_list) == 1:
+                    print("Resource found, skipping creation")
+                    return 'skip_first_creation'
+            else:
+                print("Response is None")
         else:
-            print("Resource found, skipping creation")
-            return 'skip_first_creation'
+            print("Result is None or does not contain 'response' key")
+
+        print("Resource not found (response list is empty or missing), will create it")
+        return 'create_resource'
 
     check_status = check_resource_status()
 
@@ -109,35 +108,42 @@ def import_data_to_maat():
 
     retrieve_second_resource = MaatResourceOperator(
         task_id='retrieve_second_resource',
-        operation='retrieve',
-        resource_id='srlinux-leaf2'
+        operation='get_by_name',
+        resource_name='srlinux-leaf2',
+        trigger_rule='none_failed_min_one_success'  # Run if any upstream task succeeds
     )
 
     @task.branch
     def check_second_resource_status(**context):
         """
-        Check if the second resource was found or not (404).
-        If 404, proceed to create_second_resource.
-        Otherwise, skip to end_task.
+        Check if the second resource was found or not.
+        If response list is empty, proceed to create_second_resource.
+        Otherwise, skip to skip_second_creation.
         """
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_second_resource')
 
-        print(f'Full response is: {result.get('response')}')
+        print('Retrieved second resource result:', result)
 
-        print(f'response size is: {len(result.get('response'))}')
+        # Check if result exists and has a 'response' key
+        if result and 'response' in result:
+            response_list = result.get('response')
+            if response_list is not None:
+                print(f'Full response is: {response_list}')
+                print(f'Response size is: {len(response_list)}')
 
-        http_status_code = result.get('http_status_code') if result else None
-
-        print(f'HTTP Status Code: {http_status_code}')
-
-        # Check if it's a 404 error
-        if http_status_code == 404:
-            print("Resource not found (404), will create it")
-            return 'create_second_resource'
+                # If response list has exactly 1 item, resource exists
+                if len(response_list) == 1:
+                    print("Resource found (response list has 1 item), skipping creation")
+                    return 'skip_second_creation'
+            else:
+                print("Response is None")
         else:
-            print("Resource found, skipping creation")
-            return 'skip_second_creation'
+            print("Result is None or does not contain 'response' key")
+
+        # If we get here, resource was not found (empty list or no response)
+        print("Resource not found (response list is empty or missing), will create it")
+        return 'create_second_resource'
 
     second_check_status = check_second_resource_status()
 
