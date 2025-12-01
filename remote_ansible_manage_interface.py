@@ -107,12 +107,68 @@ def ssh_remote_ansible_dag():
 
     check_router = check_router_status()
 
-    # SSHOperator doesn't have a TaskFlow decorator, so we use it directly
-    run_remote_command = SSHOperator(
-        task_id='run_remote_command',
-        ssh_conn_id='ansible-ssh',
-        command='ansible-playbook /home/ubuntu/ansible/playbooks/nokia_change_interface_state.yaml -i /home/ubuntu/ansible/inventory/hosts.ini -e "router={{ params.router }} interface={{ params.interface }} state={{ params.state }}"',
-    )
+    @task
+    def run_remote_command(**context):
+        """
+        Execute Ansible playbook via SSH and track success/failure.
+        """
+        from airflow.providers.ssh.hooks.ssh import SSHHook
+
+        router_name = context['params']['router']
+        interface_name = context['params']['interface']
+        state = context['params']['state']
+
+        command = (
+            f'ansible-playbook /home/ubuntu/ansible/playbooks/nokia_change_interface_state.yaml '
+            f'-i /home/ubuntu/ansible/inventory/hosts.ini '
+            f'-e "router={router_name} interface={interface_name} state={state}"'
+        )
+
+        print(f"Executing Ansible command: {command}")
+
+        ssh_hook = SSHHook(ssh_conn_id='ansible-ssh')
+
+        try:
+            with ssh_hook.get_conn() as ssh_client:
+                stdin, stdout, stderr = ssh_client.exec_command(command)
+                exit_status = stdout.channel.recv_exit_status()
+
+                output = stdout.read().decode('utf-8')
+                error_output = stderr.read().decode('utf-8')
+
+                print(f"Command output:\n{output}")
+
+                if exit_status == 0:
+                    print(f"Ansible playbook executed successfully")
+                    return {
+                        'success': True,
+                        'exit_status': exit_status,
+                        'router': router_name,
+                        'interface': interface_name,
+                        'state': state
+                    }
+                else:
+                    print(f"Ansible playbook failed with exit status {exit_status}")
+                    print(f"Error output:\n{error_output}")
+                    return {
+                        'success': False,
+                        'exit_status': exit_status,
+                        'error': error_output,
+                        'router': router_name,
+                        'interface': interface_name,
+                        'state': state
+                    }
+        except Exception as e:
+            print(f"SSH execution failed: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'router': router_name,
+                'interface': interface_name,
+                'state': state
+            }
+
+    run_remote_command_task = run_remote_command()
 
     @task
     def show_error(**context):
@@ -239,12 +295,26 @@ def ssh_remote_ansible_dag():
     @task.branch(trigger_rule='all_done')
     def check_update_result(**context):
         """
-        Check if Maat update was successful.
+        Check if Ansible command and Maat update were successful.
+        If run_remote_command failed, go directly to end (no rollback needed).
         If update failed or result is missing, trigger rollback.
         Otherwise, end gracefully.
         This task runs regardless of whether update_maat_task succeeds or fails.
         """
         ti = context['ti']
+
+        # First check if run_remote_command was successful
+        ansible_result = ti.xcom_pull(task_ids='run_remote_command')
+
+        print(f"Ansible result: {ansible_result}")
+
+        if not ansible_result or ansible_result.get('success') is False:
+            print("Ansible command failed or result missing - going directly to end (no rollback needed)")
+            return 'end_task'
+
+        print("Ansible command successful - checking Maat update result")
+
+        # Now check if Maat update was successful
         update_result = ti.xcom_pull(task_ids='update_router_interface')
 
         print(f"Update result: {update_result}")
@@ -339,7 +409,7 @@ def ssh_remote_ansible_dag():
 
     # Define task dependencies
     retrieve_router_info >> check_router
-    check_router >> run_remote_command >> update_maat_task >> check_update
+    check_router >> run_remote_command_task >> update_maat_task >> check_update
     check_router >> error_task
     check_router >> already_configured_task
 
