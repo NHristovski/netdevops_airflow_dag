@@ -200,12 +200,8 @@ def ssh_remote_ansible_dag():
                         break
 
                 if not interface_found:
-                    # Add new interface characteristic
-                    resource_characteristics.append({
-                        "name": interface_char_name,
-                        "value": interface_state
-                    })
-                    print(f"Added new interface characteristic: {interface_char_name} = {interface_state}")
+                    print("Error: Could not find interface to update")
+                    return {'updated': False, 'error': 'Invalid interface'}
 
                 # Now update the router in Maat using the operator
                 from operators.maat_api_operator import MaatResourceOperator
@@ -240,29 +236,38 @@ def ssh_remote_ansible_dag():
 
     update_maat_task = update_router_interface()
 
-    @task(trigger_rule='all_done')
+    @task.branch
+    def check_update_result(**context):
+        """
+        Check if Maat update was successful.
+        If update failed or result is missing, trigger rollback.
+        Otherwise, end gracefully.
+        """
+        ti = context['ti']
+        update_result = ti.xcom_pull(task_ids='update_router_interface')
+
+        print(f"Update result: {update_result}")
+
+        # Check if update was successful
+        if not update_result:
+            print("Update result is missing - triggering rollback")
+            return 'run_remote_command_rollback'
+
+        if update_result.get('updated') is False:
+            print("Update failed - triggering rollback")
+            return 'run_remote_command_rollback'
+
+        print("Update successful - proceeding to end task")
+        return 'end_task'
+
+    check_update = check_update_result()
+
+    @task()
     def run_remote_command_rollback(**context):
         """
         Rollback task - revert interface to original state if Maat update fails.
-        Only executes if update_maat_task ran and failed.
         """
         from airflow.providers.ssh.hooks.ssh import SSHHook
-
-        ti = context['ti']
-
-        # Check if update_maat_task actually ran and failed
-        update_task_state = ti.xcom_pull(task_ids='update_router_interface', key='return_value')
-
-        # Get the task instance state
-        from airflow.models import TaskInstance
-        dag_run = context['dag_run']
-        update_ti = dag_run.get_task_instance('update_router_interface')
-
-        if not update_ti or update_ti.state != 'failed':
-            print("Update task did not fail, skipping rollback")
-            return {'rolled_back': False, 'reason': 'Update task did not fail'}
-
-        print("Update task failed - proceeding with rollback")
 
         # Get the original state (opposite of what was requested)
         requested_state = context['params']['state']
@@ -271,7 +276,7 @@ def ssh_remote_ansible_dag():
         interface_name = context['params']['interface']
         router_name = context['params']['router']
 
-        print(f"ROLLBACK: Maat update failed!")
+        print(f" ROLLBACK: Maat update failed!")
         print(f"Reverting interface {interface_name} on {router_name} from {requested_state} back to {rollback_state}")
 
         rollback_command = (
@@ -293,35 +298,53 @@ def ssh_remote_ansible_dag():
                 output = stdout.read().decode('utf-8')
                 error_output = stderr.read().decode('utf-8')
 
-
                 if exit_status == 0:
                     print(f"Successfully rolled back interface {interface_name} to {rollback_state}")
+                    return {
+                        'rolled_back': True,
+                        'interface': interface_name,
+                        'router': router_name,
+                        'original_state': rollback_state,
+                        'failed_state': requested_state
+                    }
                 else:
                     print(f"Rollback command failed with exit status {exit_status}")
                     print(f"Error output:\n{error_output}")
                     raise Exception(f"Rollback failed with exit status {exit_status}")
 
-                return {
-                    'rolled_back': True,
-                    'interface': interface_name,
-                    'router': router_name,
-                    'original_state': rollback_state,
-                    'failed_state': requested_state
-                }
         except Exception as e:
             print(f"Rollback execution failed: {str(e)}")
             raise Exception(f"Critical: Both Maat update and rollback failed! Manual intervention required. Error: {str(e)}")
 
     rollback_task = run_remote_command_rollback()
 
+    @task
+    def end_task(**context):
+        """
+        End task - does nothing, just marks successful completion.
+        """
+        interface_name = context['params']['interface']
+        router_name = context['params']['router']
+        state = context['params']['state']
+
+        return {
+            'status': 'completed',
+            'interface': interface_name,
+            'router': router_name,
+            'state': state
+        }
+
+    end = end_task()
+
     # Define task dependencies
     retrieve_router_info >> check_router
-    check_router >> run_remote_command >> update_maat_task
+    check_router >> run_remote_command >> update_maat_task >> check_update
     check_router >> error_task
     check_router >> already_configured_task
 
-    # Add rollback trigger: if update_maat_task fails, execute rollback
-    update_maat_task >> rollback_task
+    # Branching after update check
+    check_update >> rollback_task
+    check_update >> end
 
 
 # Instantiate the DAG
