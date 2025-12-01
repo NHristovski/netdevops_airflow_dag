@@ -125,20 +125,6 @@ def maat_api_example_dag():
         }
     )
 
-    # Example 7: Register a listener
-    register_listener = MaatListenerOperator(
-        task_id='register_listener',
-        operation='register',
-        callback_url='http://localhost:8081/eventlistener'
-        # query parameter is optional, can be set to filter specific events
-    )
-
-    # Example 8: List listeners
-    list_listeners = MaatListenerOperator(
-        task_id='list_listeners',
-        operation='list'
-    )
-
     # Example 9: Custom endpoint using base operator
     custom_api_call = MaatAPIOperator(
         task_id='custom_api_call',
@@ -168,9 +154,6 @@ def maat_api_example_dag():
 
     # In parallel, work with resources
     list_services >> list_resources >> create_resource
-
-    # Register and list listeners in parallel
-    list_services >> register_listener >> list_listeners
 
     # Custom call can run independently
     list_services >> custom_api_call
