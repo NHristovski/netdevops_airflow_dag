@@ -49,9 +49,7 @@ def ssh_remote_ansible_dag():
     @task.branch
     def check_router_status(**context):
         """
-        Check if resource was found or not.
-        If response list is empty, proceed to create_first_router.
-        Otherwise, skip to skip_first_router_creation.
+        Check if resource was found and verify interface exists with correct state.
         """
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_router_info')
@@ -61,12 +59,50 @@ def ssh_remote_ansible_dag():
         # Check if result exists and has a 'response' key
         if result and 'response' in result:
             response_list = result.get('response')
-            if response_list is not None:
-                if len(response_list) == 1:
-                    print("Resource found: ", response_list)
-                    return 'run_remote_command'
+            if response_list is not None and len(response_list) == 1:
+                router = response_list[0]
+                print("Router found: ", router.get('name'))
+
+                # Get parameters
+                interface_name = context['params']['interface']
+                desired_state = context['params']['state']
+
+                # Get resource characteristics
+                resource_characteristics = router.get('resourceCharacteristic', [])
+
+                # Create the characteristic name for this interface
+                interface_char_name = f"interface-{interface_name}"
+
+                # Check if interface exists in the router characteristics
+                interface_found = False
+                current_state = None
+
+                for char in resource_characteristics:
+                    if char.get('name') == interface_char_name:
+                        interface_found = True
+                        current_state = char.get('value')
+                        break
+
+                if not interface_found:
+                    print(f"ERROR: Interface {interface_name} does not exist on router {router.get('name')}")
+                    # Store error info in XCom for show_error task
+                    ti.xcom_push(key='error_type', value='interface_not_found')
+                    ti.xcom_push(key='interface_name', value=interface_name)
+                    return 'show_error'
+
+                # Interface exists, check if state change is needed
+                print(f"Interface {interface_name} current state: {current_state}")
+                print(f"Desired state: {desired_state}")
+
+                if current_state == desired_state:
+                    print(f"Interface {interface_name} is already {desired_state}")
+                    return 'interface_already_configured'
+
+                print(f"State change needed: {current_state} -> {desired_state}")
+                return 'run_remote_command'
 
         print("Resource not found! Will not proceed to run command.")
+        ti.xcom_push(key='error_type', value='router_not_found')
         return 'show_error'
 
     check_router = check_router_status()
@@ -81,13 +117,46 @@ def ssh_remote_ansible_dag():
     @task
     def show_error(**context):
         """
-        Display error message when router is not found in Maat.
+        Display error message based on error type.
         """
-        router_name = context['params']['router']
-        print(f"ERROR: Router '{router_name}' not found in Maat!")
-        raise Exception(f"Router '{router_name}' not found in Maat inventory")
+        ti = context['ti']
+        error_type = ti.xcom_pull(key='error_type', task_ids='check_router_status')
+
+        if error_type == 'interface_not_found':
+            interface_name = ti.xcom_pull(key='interface_name', task_ids='check_router_status')
+            router_name = context['params']['router']
+            print(f"ERROR: Interface '{interface_name}' does not exist on router '{router_name}'!")
+            print(f"Available interfaces must be configured in Maat first.")
+            raise Exception(f"Interface '{interface_name}' does not exist on router '{router_name}'")
+        else:  # router_not_found
+            router_name = context['params']['router']
+            print(f"ERROR: Router '{router_name}' not found in Maat!")
+            print(f"Please ensure the router exists in Maat before trying to configure it.")
+            raise Exception(f"Router '{router_name}' not found in Maat inventory")
 
     error_task = show_error()
+
+    @task
+    def interface_already_configured(**context):
+        """
+        Display message when interface is already in the desired state.
+        """
+        interface_name = context['params']['interface']
+        state = context['params']['state']
+        router_name = context['params']['router']
+
+        print(f"Interface '{interface_name}' on router '{router_name}' is already {state}")
+        print(f"No configuration change needed.")
+
+        return {
+            'router': router_name,
+            'interface': interface_name,
+            'state': state,
+            'changed': False,
+            'message': f"Interface already {state}"
+        }
+
+    already_configured_task = interface_already_configured()
 
     @task
     def update_router_interface(**context):
@@ -152,7 +221,7 @@ def ssh_remote_ansible_dag():
 
                 # Execute the update
                 update_result = update_operator.execute(context)
-                print(f"✅ Successfully updated router in Maat")
+                print(f"Successfully updated router in Maat")
                 print(f"Updated characteristic: {interface_char_name} = {interface_state}")
 
                 return {
@@ -175,6 +244,7 @@ def ssh_remote_ansible_dag():
     retrieve_router_info >> check_router
     check_router >> run_remote_command >> update_task
     check_router >> error_task
+    check_router >> already_configured_task
 
 
 # Instantiate the DAG
