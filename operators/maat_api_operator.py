@@ -275,7 +275,7 @@ class MaatResourceOperator(MaatAPIOperator):
         elif operation == 'get_by_name':
             if not resource_name:
                 raise AirflowException("resource_name is required for get_by_name operation")
-            endpoint = f'/resourceInventoryManagement/v4.0.0/resource/?name={resource_name}'
+            endpoint = f'/resourceInventoryManagement/v4.0.0/resource?name={resource_name}'
             method = 'GET'
             data = None
             qp = query_params or {}
