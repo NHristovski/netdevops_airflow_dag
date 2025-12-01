@@ -61,7 +61,7 @@ def import_data_to_maat():
             return 'create_resource'
         else:
             print("Resource found, skipping creation")
-            return 'skip_creation'
+            return 'skip_first_creation'
 
     check_status = check_resource_status()
 
@@ -128,7 +128,7 @@ def import_data_to_maat():
             return 'create_second_resource'
         else:
             print("Resource found, skipping creation")
-            return 'skip_creation'
+            return 'skip_second_creation'
 
     second_check_status = check_second_resource_status()
 
@@ -160,36 +160,43 @@ def import_data_to_maat():
                 {
                     "name": "site",
                     "value": "Site-B"
-                },
+                }
             ],
             "@type": "PhysicalResource",
             "@schemaLocation": "https://bitbucket.software.geant.org/projects/OSSBSS/repos/maat-schema/raw/TMF639-ResourceInventory-v4-pionier.json"
         }
     )
 
-    # Empty task for the skip branch
+    # Empty task for the first skip branch
     @task
-    def skip_creation():
+    def skip_first_creation():
         """
-        Placeholder task when resource already exists.
+        Placeholder task when first resource already exists.
         """
-        print("Resource already exists, skipping creation")
+        print("First resource already exists, skipping creation")
         return {'status': 'skipped'}
 
-    skip_task = skip_creation()
+    skip_first_task = skip_first_creation()
 
+    # Empty task for the second skip branch
+    @task
+    def skip_second_creation():
+        """
+        Placeholder task when second resource already exists.
+        """
+        print("Second resource already exists, skipping creation")
+        return {'status': 'skipped'}
 
+    skip_second_task = skip_second_creation()
 
     # Define task dependencies
     list_resources >> retrieve_resource >> check_status
-    check_status >> create_resource
-    check_status >> skip_task
+    check_status >> create_resource >> retrieve_second_resource
+    check_status >> skip_first_task >> retrieve_second_resource
 
-
-    create_resource >> retrieve_second_resource >> check_second_resource_status
-
-    check_second_resource_status >> create_second_resource
-    check_second_resource_status >> skip_task
+    retrieve_second_resource >> second_check_status
+    second_check_status >> create_second_resource
+    second_check_status >> skip_second_task
 
 # Instantiate the DAG
 dag_instance = import_data_to_maat()
