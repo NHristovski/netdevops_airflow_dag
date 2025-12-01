@@ -114,7 +114,6 @@ def import_data_to_maat():
             "id": "srlinux-leaf1",
             "name": "srlinux-leaf1",
             "serialNumber": "SRL-7220-IXR-D2L-2024-001",
-            "operationalState": "enabled",
             "resourceCharacteristic": [
                 {
                     "name": "vendor",
