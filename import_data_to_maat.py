@@ -111,8 +111,8 @@ def import_data_to_maat():
     @task.branch
     def check_second_resource_status(**context):
         """
-        Check if resource was found or not (404).
-        If 404, proceed to create_resource.
+        Check if the second resource was found or not (404).
+        If 404, proceed to create_second_resource.
         Otherwise, skip to end_task.
         """
         ti = context['ti']
