@@ -50,7 +50,8 @@ def import_data_to_maat():
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_resource')
 
-        # Get HTTP status code from the result dictionary
+        print('Retrieved resource result:', result)
+
         http_status_code = result.get('http_status_code') if result else None
 
         print(f'HTTP Status Code: {http_status_code}')
