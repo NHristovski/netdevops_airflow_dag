@@ -86,6 +86,14 @@ def initial_maat_setup():
                 {
                     "name": "site",
                     "value": "Site-A"
+                },
+                {
+                    "name": "interface-e1-1",
+                    "value": "up"
+                },
+                {
+                    "name": "interface-e1-49",
+                    "value": "up"
                 }
             ],
             "@type": "PhysicalResource",
@@ -152,6 +160,14 @@ def initial_maat_setup():
                 {
                     "name": "site",
                     "value": "Site-B"
+                },
+                {
+                    "name": "interface-e1-1",
+                    "value": "up"
+                },
+                {
+                    "name": "interface-e1-49",
+                    "value": "up"
                 }
             ],
             "@type": "PhysicalResource",
