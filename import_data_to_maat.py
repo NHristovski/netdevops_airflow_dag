@@ -57,7 +57,7 @@ def import_data_to_maat():
         print(f'HTTP Status Code: {http_status_code}')
 
         # Check if it's a 404 error
-        if http_status_code == 200:
+        if http_status_code == 404:
             print("Resource not found (404), will create it")
             return 'create_resource'
         else:
