@@ -116,9 +116,6 @@ class MaatAPIOperator(BaseOperator):
                 self.log.info(f"Response status code: {response.status_code}")
                 self.log.info(f"Response headers: {dict(response.headers)}")
 
-                # Push status code to XCom for downstream tasks
-                context['ti'].xcom_push(key='http_status_code', value=response.status_code)
-
                 if response.status_code >= 300:
                     if response.status_code == 404:
                         self.log.warning(f"NotFound Error {response.status_code}")

@@ -87,14 +87,10 @@ def import_data_to_maat():
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_resource')
 
-        # Also pull the HTTP status code from XCom
-        http_status_code = ti.xcom_pull(key='http_status_code', task_ids='retrieve_resource')
+        print(f'HTTP Status Code: {result.http_status_code}')
 
-        print(f'The result is: {result}')
-        print(f'HTTP Status Code: {http_status_code}')
-
-        # Check if it's a 404 error - check both in result and from XCom
-        if http_status_code == 404 or (result and result.get('http_status_code') == 404):
+        # Check if it's a 404 error
+        if result.http_status_code == 404:
             print("Resource not found (404), will create it")
             return 'create_resource'
         else:
@@ -134,24 +130,6 @@ def import_data_to_maat():
                 {
                     "name": "site",
                     "value": "Site-A"
-                },
-                {
-                    "name": "tunnel-interface",
-                    "value": "ethernet-1/1"
-                },
-                {
-                    "name": "tunnel-ip",
-                    "value": "10.0.1.1/30"
-                }
-            ],
-            "resourceRelationship": [
-                {
-                    "relationshipType": "connects_to",
-                    "resource": {
-                        "id": "bref:srlinux-leaf2",
-                        "name": "srlinux-leaf2",
-                        "@referredType": "PhysicalResource"
-                    }
                 }
             ],
             "@type": "PhysicalResource",
