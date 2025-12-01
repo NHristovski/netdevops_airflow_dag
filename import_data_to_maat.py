@@ -29,7 +29,7 @@ def import_data_to_maat():
         }
     )
 
-    retrive_resources = MaatResourceOperator(
+    retrieve_resource = MaatResourceOperator(
         task_id='retrieve_resource',
         operation='retrieve',
         resource_id='srlinux-leaf1'
@@ -83,10 +83,14 @@ def import_data_to_maat():
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_resource')
 
-        print('The result is: ', result)
+        # Also pull the HTTP status code from XCom
+        http_status_code = ti.xcom_pull(key='http_status_code', task_ids='retrieve_resource')
 
-         # Check if the result indicates a 404 error
-        if result and result.get('status') == 'not_found':
+        print(f'The result is: {result}')
+        print(f'HTTP Status Code: {http_status_code}')
+
+        # Check if it's a 404 error - check both in result and from XCom
+        if http_status_code == 404 or (result and result.get('http_status_code') == 404):
             print("Resource not found (404), will create it")
             return 'create_resource'
         else:
@@ -99,7 +103,7 @@ def import_data_to_maat():
     create_resource = MaatResourceOperator(
         task_id='create_resource',
         operation='create',
-        data={
+        resource_data={
             "category": "device.router",
             "description": "Nokia SRLinux Router - leaf1",
             "id": "srlinux-leaf1",
@@ -164,7 +168,7 @@ def import_data_to_maat():
     skip_task = skip_creation()
 
     # Define task dependencies
-    list_resources >> find_resource >> check_status
+    list_resources >> retrieve_resource >> check_status
     check_status >> create_resource
     check_status >> skip_task
 
