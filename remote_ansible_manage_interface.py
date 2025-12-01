@@ -240,14 +240,29 @@ def ssh_remote_ansible_dag():
 
     update_maat_task = update_router_interface()
 
-    @task(trigger_rule='one_failed')
+    @task(trigger_rule='all_done')
     def run_remote_command_rollback(**context):
         """
         Rollback task - revert interface to original state if Maat update fails.
+        Only executes if update_maat_task ran and failed.
         """
         from airflow.providers.ssh.hooks.ssh import SSHHook
 
         ti = context['ti']
+
+        # Check if update_maat_task actually ran and failed
+        update_task_state = ti.xcom_pull(task_ids='update_router_interface', key='return_value')
+
+        # Get the task instance state
+        from airflow.models import TaskInstance
+        dag_run = context['dag_run']
+        update_ti = dag_run.get_task_instance('update_router_interface')
+
+        if not update_ti or update_ti.state != 'failed':
+            print("Update task did not fail, skipping rollback")
+            return {'rolled_back': False, 'reason': 'Update task did not fail'}
+
+        print("Update task failed - proceeding with rollback")
 
         # Get the original state (opposite of what was requested)
         requested_state = context['params']['state']
@@ -256,7 +271,7 @@ def ssh_remote_ansible_dag():
         interface_name = context['params']['interface']
         router_name = context['params']['router']
 
-        print(f"️ROLLBACK: Maat update failed!")
+        print(f"ROLLBACK: Maat update failed!")
         print(f"Reverting interface {interface_name} on {router_name} from {requested_state} back to {rollback_state}")
 
         rollback_command = (
