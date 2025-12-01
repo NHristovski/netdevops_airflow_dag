@@ -31,7 +31,7 @@ def import_data_to_maat():
     )
 
     find_resource = MaatResourceOperator(
-        task_id='list_all_resources',
+        task_id='find_resource',
         operation='retrieve',
         resource_id='srlinux-leaf1',
     )
