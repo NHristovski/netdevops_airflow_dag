@@ -119,6 +119,10 @@ def import_data_to_maat():
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_second_resource')
 
+        print(f'Full response is: {result.get('response')}')
+
+        print(f'response size is: {len(result.get('response'))}')
+
         http_status_code = result.get('http_status_code') if result else None
 
         print(f'HTTP Status Code: {http_status_code}')
