@@ -88,11 +88,11 @@ def initial_maat_setup():
                     "value": "Site-A"
                 },
                 {
-                    "name": "interface-e1-1",
+                    "name": "interface-ethernet-1/1",
                     "value": "up"
                 },
                 {
-                    "name": "interface-e1-49",
+                    "name": "interface-ethernet-1/49",
                     "value": "up"
                 }
             ],
@@ -162,11 +162,11 @@ def initial_maat_setup():
                     "value": "Site-B"
                 },
                 {
-                    "name": "interface-e1-1",
+                    "name": "interface-ethernet-1/1",
                     "value": "up"
                 },
                 {
-                    "name": "interface-e1-49",
+                    "name": "interface-ethernet-1/49",
                     "value": "up"
                 }
             ],
