@@ -133,7 +133,7 @@ def import_data_to_maat():
     second_check_status = check_second_resource_status()
 
     create_second_resource = MaatResourceOperator(
-        task_id='create_resource',
+        task_id='create_second_resource',
         operation='create',
         resource_data={
             "category": "device.router",
