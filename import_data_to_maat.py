@@ -30,11 +30,39 @@ def import_data_to_maat():
         }
     )
 
-    find_resource = MaatResourceOperator(
-        task_id='find_resource',
-        operation='retrieve',
-        resource_id='srlinux-leaf1',
-    )
+    # Task to find or handle missing resource
+    @task
+    def find_or_handle_resource(**context):
+        """
+        Try to find a resource, handle 404 errors gracefully.
+        """
+        from operators.maat_api_operator import MaatResourceOperator
+        from airflow.exceptions import AirflowException
+
+        # Create an instance of the operator
+        operator = MaatResourceOperator(
+            task_id='find_resource_op',
+            operation='retrieve',
+            resource_id='srlinux-leaf1',
+        )
+
+        try:
+            # Execute the operator
+            result = operator.execute(context)
+            print("I GOT RESULT:", result)
+            return result
+        except AirflowException as e:
+            # Check if it's a 404 error
+            error_msg = str(e)
+            if '404' in error_msg:
+                print("ITS 404 ERROR - RESOURCE NOT FOUND")
+                return {'status': 'not_found', 'resource_id': 'srlinux-leaf1'}
+            else:
+                # Re-raise if it's not a 404
+                raise e
+
+    find_resource = find_or_handle_resource()
+
 
     # Define task dependencies
     list_resources >> find_resource
