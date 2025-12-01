@@ -2,13 +2,13 @@
 Maat Management API Operator for Apache Airflow.
 
 This operator provides integration with the Maat Management API,
-supporting operations for Service Inventory, Resource Inventory, and Listener Management.
+supporting operations for Resource and Service Inventory Management.
 """
 
 from typing import Any, Dict, Optional
 import json
+import time
 import requests
-from requests.auth import HTTPBasicAuth
 
 from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException
@@ -21,7 +21,6 @@ class MaatAPIOperator(BaseOperator):
     This operator supports all CRUD operations for:
     - Service Inventory Management
     - Resource Inventory Management
-    - Listener Inventory Management
 
     :param endpoint: API endpoint path (e.g., '/serviceInventoryManagement/v4.0.0/service')
     :param method: HTTP method (GET, POST, PATCH, DELETE)
@@ -30,8 +29,6 @@ class MaatAPIOperator(BaseOperator):
     :param query_params: Query parameters (for GET requests)
     :param headers: Additional HTTP headers
     :param verify_ssl: Whether to verify SSL certificates (default: False)
-    :param auth_user: Username for HTTP Basic Auth (optional)
-    :param auth_password: Password for HTTP Basic Auth (optional)
     :param response_check: Optional callable to validate response
     :param do_xcom_push: Whether to push the response to XCom (default: True)
     """
@@ -51,8 +48,6 @@ class MaatAPIOperator(BaseOperator):
         query_params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
         verify_ssl: bool = False,
-        auth_user: Optional[str] = None,
-        auth_password: Optional[str] = None,
         response_check: Optional[callable] = None,
         do_xcom_push: bool = True,
         **kwargs
@@ -65,8 +60,6 @@ class MaatAPIOperator(BaseOperator):
         self.query_params = query_params or {}
         self.headers = headers or {}
         self.verify_ssl = verify_ssl
-        self.auth_user = auth_user
-        self.auth_password = auth_password
         self.response_check = response_check
         self.do_xcom_push = do_xcom_push
 
@@ -94,11 +87,6 @@ class MaatAPIOperator(BaseOperator):
         }
         request_headers.update(self.headers)
 
-        # Prepare authentication
-        auth = None
-        if self.auth_user and self.auth_password:
-            auth = HTTPBasicAuth(self.auth_user, self.auth_password)
-
         # Log the request
         self.log.info(f"Making {method} request to: {url}")
         self.log.info(f"Headers: {request_headers}")
@@ -107,61 +95,70 @@ class MaatAPIOperator(BaseOperator):
         if self.data:
             self.log.info(f"Request body: {json.dumps(self.data, indent=2)}")
 
-        try:
-            # Make the HTTP request
-            response = requests.request(
-                method=method,
-                url=url,
-                json=self.data if self.data else None,
-                params=self.query_params,
-                headers=request_headers,
-                auth=auth,
-                verify=self.verify_ssl,
-                timeout=60
-            )
+        # Retry logic for connection errors and timeouts
+        max_retries = 3
+        retry_delay_seconds = 60
 
-            # Log response
-            self.log.info(f"Response status code: {response.status_code}")
-            self.log.info(f"Response headers: {dict(response.headers)}")
-
-            # Check for HTTP errors
+        for attempt in range(1, max_retries + 1):
             try:
-                response.raise_for_status()
-            except requests.exceptions.HTTPError as e:
-                self.log.error(f"HTTP Error: {e}")
-                self.log.error(f"Response body: {response.text}")
-                raise AirflowException(
-                    f"HTTP {response.status_code} error from Maat API: {response.text}"
+                # Make the HTTP request
+                response = requests.request(
+                    method=method,
+                    url=url,
+                    json=self.data if self.data else None,
+                    params=self.query_params,
+                    headers=request_headers,
+                    verify=self.verify_ssl,
+                    timeout=60
                 )
 
-            # Parse response
-            response_data = None
-            if response.text:
+                # Log response
+                self.log.info(f"Response status code: {response.status_code}")
+                self.log.info(f"Response headers: {dict(response.headers)}")
+
+                # Check for HTTP errors
                 try:
-                    response_data = response.json()
-                    self.log.info(f"Response JSON: {json.dumps(response_data, indent=2)}")
-                except json.JSONDecodeError:
-                    response_data = response.text
-                    self.log.info(f"Response text: {response_data}")
-            else:
-                self.log.info("Empty response body")
-                response_data = {"status": "success", "status_code": response.status_code}
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    self.log.error(f"HTTP Error: {e}")
+                    self.log.error(f"Response body: {response.text}")
+                    raise AirflowException(
+                        f"HTTP {response.status_code} error from Maat API: {response.text}"
+                    )
 
-            # Custom response validation
-            if self.response_check and not self.response_check(response_data):
-                raise AirflowException("Response check failed")
+                # Parse response
+                response_data = None
+                if response.text:
+                    try:
+                        response_data = response.json()
+                        self.log.info(f"Response JSON: {json.dumps(response_data, indent=2)}")
+                    except json.JSONDecodeError:
+                        response_data = response.text
+                        self.log.info(f"Response text: {response_data}")
+                else:
+                    self.log.info("Empty response body")
+                    response_data = {"status": "success", "status_code": response.status_code}
 
-            return response_data
+                # Custom response validation
+                if self.response_check and not self.response_check(response_data):
+                    raise AirflowException("Response check failed")
 
-        except requests.exceptions.ConnectionError as e:
-            self.log.error(f"Connection error: {e}")
-            raise AirflowException(f"Failed to connect to Maat API at {url}: {e}")
-        except requests.exceptions.Timeout as e:
-            self.log.error(f"Request timeout: {e}")
-            raise AirflowException(f"Request to Maat API timed out: {e}")
-        except requests.exceptions.RequestException as e:
-            self.log.error(f"Request error: {e}")
-            raise AirflowException(f"Request to Maat API failed: {e}")
+                return response_data
+
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                error_type = "Connection error" if isinstance(e, requests.exceptions.ConnectionError) else "Request timeout"
+                self.log.error(f"{error_type} on attempt {attempt}/{max_retries}: {e}")
+
+                if attempt < max_retries:
+                    self.log.warning(f"Retrying in {retry_delay_seconds} seconds...")
+                    time.sleep(retry_delay_seconds)
+                else:
+                    self.log.error(f"Maat API is unavailable after {max_retries} attempts")
+                    raise AirflowException("Maat is unavailable")
+
+            except requests.exceptions.RequestException as e:
+                self.log.error(f"Request error: {e}")
+                raise AirflowException(f"Request to Maat API failed: {e}")
 
 
 class MaatServiceOperator(MaatAPIOperator):
@@ -297,72 +294,6 @@ class MaatResourceOperator(MaatAPIOperator):
             **kwargs
         )
 
-
-class MaatListenerOperator(MaatAPIOperator):
-    """
-    Specialized operator for Listener Management operations.
-
-    :param listener_id: Listener ID (required for retrieve, delete operations)
-    :param operation: Operation type ('list', 'register', 'retrieve', 'unregister')
-    :param callback_url: Callback URL (required for register operation)
-    :param query: Query string (optional for register operation)
-    """
-
-    def __init__(
-        self,
-        *,
-        operation: str,
-        listener_id: Optional[str] = None,
-        callback_url: Optional[str] = None,
-        query: Optional[str] = None,
-        **kwargs
-    ) -> None:
-        # Determine endpoint and method based on operation
-        operation = operation.lower()
-
-        if operation == 'list':
-            endpoint = '/hub'
-            method = 'GET'
-            data = None
-            qp = {}
-        elif operation == 'register':
-            if not callback_url:
-                raise AirflowException("callback_url is required for register operation")
-            endpoint = '/hub'
-            method = 'POST'
-            data = {'callback': callback_url}
-            if query:
-                data['query'] = query
-            qp = {}
-        elif operation == 'retrieve':
-            if not listener_id:
-                raise AirflowException("listener_id is required for retrieve operation")
-            endpoint = f'/hub/{listener_id}'
-            method = 'GET'
-            data = None
-            qp = {}
-        elif operation == 'unregister':
-            if not listener_id:
-                raise AirflowException("listener_id is required for unregister operation")
-            endpoint = f'/hub/{listener_id}'
-            method = 'DELETE'
-            data = None
-            qp = {}
-        else:
-            raise AirflowException(
-                f"Invalid operation: {operation}. Must be one of: list, register, retrieve, unregister"
-            )
-
-        super().__init__(
-            endpoint=endpoint,
-            method=method,
-            data=data,
-            query_params=qp,
-            **kwargs
-        )
-"""Custom Airflow operators for netdevops workflows."""
-
 from operators.maat_api_operator import MaatAPIOperator
 
 __all__ = ['MaatAPIOperator']
-

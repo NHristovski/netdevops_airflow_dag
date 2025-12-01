@@ -15,8 +15,7 @@ from datetime import datetime
 from operators.maat_api_operator import (
     MaatAPIOperator,
     MaatServiceOperator,
-    MaatResourceOperator,
-    MaatListenerOperator
+    MaatResourceOperator
 )
 
 

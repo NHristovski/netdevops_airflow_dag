@@ -1,0 +1,18 @@
+{
+  "category": "network.vpn",
+  "description": "Minimal service example - VPN connection",
+  "name": "vpn-service-minimal-example",
+  "serviceCharacteristic": [
+    {
+      "name": "tunnel-type",
+      "value": "IPsec"
+    },
+    {
+      "name": "encryption",
+      "value": "AES-256"
+    }
+  ],
+  "@type": "Service",
+  "@schemaLocation": "https://bitbucket.software.geant.org/projects/OSSBSS/repos/maat-schema/raw/TMF638-ServiceInventory-v4-pionier.json"
+}
+

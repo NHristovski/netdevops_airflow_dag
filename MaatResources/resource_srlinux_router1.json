@@ -1,0 +1,51 @@
+{
+  "category": "device.router",
+  "description": "Nokia SRLinux Router - leaf1",
+  "id": "srlinux-leaf1",
+  "name": "srlinux-leaf1",
+  "serialNumber": "SRL-7220-IXR-D2L-2024-001",
+  "operationalState": "enabled",
+  "resourceCharacteristic": [
+    {
+      "name": "vendor",
+      "value": "Nokia"
+    },
+    {
+      "name": "model",
+      "value": "7220 IXR-D2L"
+    },
+    {
+      "name": "os-version",
+      "value": "24.10.1"
+    },
+    {
+      "name": "management-ip",
+      "value": "172.80.80.11"
+    },
+    {
+      "name": "site",
+      "value": "Site-A"
+    },
+    {
+      "name": "tunnel-interface",
+      "value": "ethernet-1/1"
+    },
+    {
+      "name": "tunnel-ip",
+      "value": "10.0.1.1/30"
+    }
+  ],
+  "resourceRelationship": [
+    {
+      "relationshipType": "connects_to",
+      "resource": {
+        "id": "srlinux-leaf2",
+        "name": "srlinux-leaf2",
+        "@referredType": "PhysicalResource"
+      }
+    }
+  ],
+  "@type": "PhysicalResource",
+  "@schemaLocation": "https://bitbucket.software.geant.org/projects/OSSBSS/repos/maat-schema/raw/TMF639-ResourceInventory-v4-pionier.json"
+}
+

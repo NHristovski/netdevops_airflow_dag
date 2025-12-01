@@ -1,0 +1,141 @@
+{
+  "category": "device.switch",
+  "description": "Example physical network switch - Juniper PTX series router",
+  "name": "ptx-lab-core-01",
+  "serialNumber": "JNP-PTX-5K-2024-00123",
+  "manufactureDate": "2024-06-15T00:00:00Z",
+  "startOperatingDate": "2024-08-01T09:00:00Z",
+  "resourceVersion": "1.0",
+  "administrativeState": "unlocked",
+  "operationalState": "enabled",
+  "powerState": "3",
+  "versionNumber": "Junos OS 23.2R1",
+  "resourceCharacteristic": [
+    {
+      "name": "model",
+      "value": "PTX5000",
+      "valueType": "string"
+    },
+    {
+      "name": "chassis-type",
+      "value": "fixed",
+      "valueType": "string"
+    },
+    {
+      "name": "interface-count",
+      "value": "48",
+      "valueType": "integer"
+    },
+    {
+      "name": "management-ip",
+      "value": "192.168.1.10",
+      "valueType": "string"
+    },
+    {
+      "name": "location",
+      "value": "Rack A1, Position 12",
+      "valueType": "string"
+    },
+    {
+      "name": "firmware-version",
+      "value": "23.2R1.15",
+      "valueType": "string"
+    }
+  ],
+  "place": [
+    {
+      "id": "LAB-DC-01",
+      "name": "Laboratory Data Center",
+      "role": "installation site",
+      "@type": "GeographicSite"
+    }
+  ],
+  "relatedParty": [
+    {
+      "id": "ORG-001",
+      "name": "Network Operations Team",
+      "role": "operator",
+      "@referredType": "Organization"
+    }
+  ],
+  "note": [
+    {
+      "date": "2024-08-01T09:00:00Z",
+      "author": "admin",
+      "text": "Initial deployment in laboratory environment"
+    },
+    {
+      "date": "2024-11-20T14:30:00Z",
+      "author": "network-engineer",
+      "text": "Firmware upgraded to latest stable version"
+    }
+  ],
+  "attachment": [
+    {
+      "id": "ATT-001",
+      "name": "Installation Manual",
+      "description": "PTX5000 Installation and Configuration Guide",
+      "attachmentType": "document",
+      "url": "https://docs.example.com/ptx5000-install.pdf",
+      "mimeType": "application/pdf"
+    }
+  ],
+  "resourceSpecification": {
+    "id": "RES-SPEC-PTX5K",
+    "name": "Juniper PTX5000 Specification",
+    "version": "1.0",
+    "@type": "ResourceSpecification"
+  },
+  "resourceRelationship": [
+    {
+      "relationshipType": "connects_to",
+      "resource": {
+        "id": "ptx-lab-core-02",
+        "href": "/resourceInventoryManagement/v4.0.0/resource/ptx-lab-core-02",
+        "name": "ptx-lab-core-02",
+        "@referredType": "PhysicalResource"
+      }
+    },
+    {
+      "relationshipType": "managed_by",
+      "resource": {
+        "id": "netconf-controller-01",
+        "href": "/resourceInventoryManagement/v4.0.0/resource/netconf-controller-01",
+        "name": "NETCONF Controller",
+        "@referredType": "LogicalResource"
+      }
+    }
+  ],
+  "activationFeature": [
+    {
+      "id": "FEAT-BGP",
+      "name": "BGP Routing",
+      "isEnabled": true,
+      "featureCharacteristic": [
+        {
+          "name": "protocol-version",
+          "value": "BGPv4"
+        },
+        {
+          "name": "max-peers",
+          "value": "1000"
+        }
+      ]
+    },
+    {
+      "id": "FEAT-MPLS",
+      "name": "MPLS Switching",
+      "isEnabled": true,
+      "featureCharacteristic": [
+        {
+          "name": "label-range",
+          "value": "16-1048575"
+        }
+      ]
+    }
+  ],
+  "@type": "PhysicalResource",
+  "@schemaLocation": "https://bitbucket.software.geant.org/projects/OSSBSS/repos/maat-schema/raw/TMF639-ResourceInventory-v4-pionier.json",
+  "@baseType": "Resource"
+}
+
