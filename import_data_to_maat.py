@@ -3,6 +3,10 @@ from datetime import datetime
 from operators.maat_api_operator import (
     MaatResourceOperator
 )
+import logging
+
+# Suppress the secrets masker warning for short values
+logging.getLogger('airflow.sdk._shared.secrets_masker.secrets_masker').setLevel(logging.ERROR)
 
 @dag(
     dag_id='import_data_to_maat',
@@ -144,7 +148,7 @@ def import_data_to_maat():
                 {
                     "relationshipType": "connects_to",
                     "resource": {
-                        "id": "srlinux-leaf2",
+                        "id": "bref:srlinux-leaf2",
                         "name": "srlinux-leaf2",
                         "@referredType": "PhysicalResource"
                     }
