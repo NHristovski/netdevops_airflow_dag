@@ -29,42 +29,48 @@ def import_data_to_maat():
         }
     )
 
-    # Task to find or handle missing resource
-    @task
-    def retrieve_resource(**context):
-        """
-        Try to find a resource, handle 404 errors gracefully.
-        """
-        from operators.maat_api_operator import MaatResourceOperator
+    retrive_resources = MaatResourceOperator(
+        task_id='retrieve_resource',
+        operation='retrieve',
+        resource_id='srlinux-leaf1'
+    )
 
-        # Create an instance of the operator
-        operator = MaatResourceOperator(
-            task_id='find_resource_op',
-            operation='retrieve',
-            resource_id='srlinux-leaf1',
-        )
-
-        # Execute the operator
-        result = operator.execute(context)
-
-        # Pull the HTTP status code from XCom (pushed by the operator in the same task context)
-        ti = context['ti']
-        http_status_code = ti.xcom_pull(key='http_status_code')
-
-        print(f"HTTP Status Code: {http_status_code}")
-        print(f"Result: {result}")
-
-        # Check if it's a 404 error (resource not found)
-        if http_status_code == 404:
-            return {'status': 'not_found', 'resource_id': 'srlinux-leaf1', 'http_status_code': http_status_code}
-
-        # Return the result with status code
-        if isinstance(result, dict):
-            result['http_status_code'] = http_status_code
-
-        return result
-
-    find_resource = retrieve_resource()
+    # # Task to find or handle missing resource
+    # @task
+    # def retrieve_resource(**context):
+    #     """
+    #     Try to find a resource, handle 404 errors gracefully.
+    #     """
+    #     from operators.maat_api_operator import MaatResourceOperator
+    #
+    #     # Create an instance of the operator
+    #     operator = MaatResourceOperator(
+    #         task_id='find_resource_op',
+    #         operation='retrieve',
+    #         resource_id='srlinux-leaf1',
+    #     )
+    #
+    #     # Execute the operator
+    #     result = operator.execute(context)
+    #
+    #     # Pull the HTTP status code from XCom (pushed by the operator in the same task context)
+    #     ti = context['ti']
+    #     http_status_code = ti.xcom_pull(key='http_status_code')
+    #
+    #     print(f"HTTP Status Code: {http_status_code}")
+    #     print(f"Result: {result}")
+    #
+    #     # Check if it's a 404 error (resource not found)
+    #     if http_status_code == 404:
+    #         return {'status': 'not_found', 'resource_id': 'srlinux-leaf1', 'http_status_code': http_status_code}
+    #
+    #     # Return the result with status code
+    #     if isinstance(result, dict):
+    #         result['http_status_code'] = http_status_code
+    #
+    #     return result
+    #
+    # find_resource = retrieve_resource()
 
     # Branching task to decide whether to create resource or skip
     @task.branch
@@ -77,6 +83,9 @@ def import_data_to_maat():
         ti = context['ti']
         result = ti.xcom_pull(task_ids='retrieve_resource')
 
+        print('The result is: ', result)
+
+         # Check if the result indicates a 404 error
         if result and result.get('status') == 'not_found':
             print("Resource not found (404), will create it")
             return 'create_resource'
