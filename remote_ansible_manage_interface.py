@@ -238,9 +238,9 @@ def ssh_remote_ansible_dag():
             print("Error: No router information available")
             return {'updated': False, 'error': 'No router data'}
 
-    update_task = update_router_interface()
+    update_maat_task = update_router_interface()
 
-    @task
+    @task(trigger_rule='one_failed')
     def run_remote_command_rollback(**context):
         """
         Rollback task - revert interface to original state if Maat update fails.
@@ -301,12 +301,12 @@ def ssh_remote_ansible_dag():
 
     # Define task dependencies
     retrieve_router_info >> check_router
-    check_router >> run_remote_command >> update_task
+    check_router >> run_remote_command >> update_maat_task
     check_router >> error_task
     check_router >> already_configured_task
 
-    # Add rollback trigger: if update_task fails, execute rollback
-    update_task >> rollback_task
+    # Add rollback trigger: if update_maat_task fails, execute rollback
+    update_maat_task >> rollback_task
 
 
 # Instantiate the DAG
