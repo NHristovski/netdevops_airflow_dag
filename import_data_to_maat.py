@@ -25,33 +25,24 @@ logging.getLogger('airflow.sdk._shared.secrets_masker.secrets_masker').setLevel(
 )
 def import_data_to_maat():
 
-    list_resources = MaatResourceOperator(
-        task_id='list_all_resources',
-        operation=OperationType.LIST,
-        query_params={
-            'offset': 0,
-            'limit': 10,
-        }
-    )
-
-    retrieve_resource = MaatResourceOperator(
-        task_id='retrieve_resource',
+    retrieve_first_router = MaatResourceOperator(
+        task_id='retrieve_first_router',
         operation=OperationType.GET_BY_NAME,
         resource_name='srlinux-leaf1'
     )
 
     # Branching task to decide whether to create resource or skip
     @task.branch
-    def check_resource_status(**context):
+    def check_first_router_status(**context):
         """
         Check if resource was found or not.
-        If response list is empty, proceed to create_resource.
-        Otherwise, skip to skip_first_creation.
+        If response list is empty, proceed to create_first_router.
+        Otherwise, skip to skip_first_router_creation.
         """
         ti = context['ti']
-        result = ti.xcom_pull(task_ids='retrieve_resource')
+        result = ti.xcom_pull(task_ids='retrieve_first_router')
 
-        print('Retrieved resource result:', result)
+        print('Result: ', result)
 
         # Check if result exists and has a 'response' key
         if result and 'response' in result:
@@ -59,20 +50,16 @@ def import_data_to_maat():
             if response_list is not None:
                 if len(response_list) == 1:
                     print("Resource found, skipping creation")
-                    return 'skip_first_creation'
-            else:
-                print("Response is None")
-        else:
-            print("Result is None or does not contain 'response' key")
+                    return 'skip_first_router_creation'
 
         print("Resource not found (response list is empty or missing), will create it")
-        return 'create_resource'
+        return 'create_first_router'
 
-    check_status = check_resource_status()
+    check_first_router = check_first_router_status()
 
     # Task to create the resource (only runs if 404)
-    create_resource = MaatResourceOperator(
-        task_id='create_resource',
+    create_first_router = MaatResourceOperator(
+        task_id='create_first_router',
         operation=OperationType.CREATE,
         resource_data={
             "category": "device.router",
@@ -107,49 +94,39 @@ def import_data_to_maat():
 
     )
 
-    retrieve_second_resource = MaatResourceOperator(
-        task_id='retrieve_second_resource',
+    retrieve_second_router = MaatResourceOperator(
+        task_id='retrieve_second_router',
         operation=OperationType.GET_BY_NAME,
         resource_name='srlinux-leaf2',
-        trigger_rule='none_failed_min_one_success'  # Run if any upstream task succeeds
+        trigger_rule='none_failed_min_one_success'
     )
 
     @task.branch
-    def check_second_resource_status(**context):
+    def check_second_router_status(**context):
         """
         Check if the second resource was found or not.
-        If response list is empty, proceed to create_second_resource.
-        Otherwise, skip to skip_second_creation.
+        If response list is empty, proceed to create_second_router.
+        Otherwise, skip to skip_second_router_creation.
         """
         ti = context['ti']
-        result = ti.xcom_pull(task_ids='retrieve_second_resource')
+        result = ti.xcom_pull(task_ids='retrieve_second_router')
 
-        print('Retrieved second resource result:', result)
+        print('Result: ', result)
 
-        # Check if result exists and has a 'response' key
         if result and 'response' in result:
             response_list = result.get('response')
             if response_list is not None:
-                print(f'Full response is: {response_list}')
-                print(f'Response size is: {len(response_list)}')
-
-                # If response list has exactly 1 item, resource exists
                 if len(response_list) == 1:
                     print("Resource found (response list has 1 item), skipping creation")
-                    return 'skip_second_creation'
-            else:
-                print("Response is None")
-        else:
-            print("Result is None or does not contain 'response' key")
+                    return 'skip_second_router_creation'
 
-        # If we get here, resource was not found (empty list or no response)
         print("Resource not found (response list is empty or missing), will create it")
-        return 'create_second_resource'
+        return 'create_second_router'
 
-    second_check_status = check_second_resource_status()
+    check_second_router = check_second_router_status()
 
-    create_second_resource = MaatResourceOperator(
-        task_id='create_second_resource',
+    create_second_router = MaatResourceOperator(
+        task_id='create_second_router',
         operation=OperationType.CREATE,
         resource_data={
             "category": "device.router",
@@ -185,34 +162,34 @@ def import_data_to_maat():
 
     # Empty task for the first skip branch
     @task
-    def skip_first_creation():
+    def skip_first_router_creation():
         """
-        Placeholder task when first resource already exists.
+        Placeholder task when first router already exists.
         """
-        print("First resource already exists, skipping creation")
+        print("First router already exists, skipping creation")
         return {'status': 'skipped'}
 
-    skip_first_task = skip_first_creation()
+    skip_first_router = skip_first_router_creation()
 
     # Empty task for the second skip branch
     @task
-    def skip_second_creation():
+    def skip_second_router_creation():
         """
-        Placeholder task when second resource already exists.
+        Placeholder task when second router already exists.
         """
-        print("Second resource already exists, skipping creation")
+        print("Second router already exists, skipping creation")
         return {'status': 'skipped'}
 
-    skip_second_task = skip_second_creation()
+    skip_second_router = skip_second_router_creation()
 
     # Define task dependencies
-    list_resources >> retrieve_resource >> check_status
-    check_status >> create_resource >> retrieve_second_resource
-    check_status >> skip_first_task >> retrieve_second_resource
+    retrieve_first_router >> check_first_router
+    check_first_router >> create_first_router >> retrieve_second_router
+    check_first_router >> skip_first_router >> retrieve_second_router
 
-    retrieve_second_resource >> second_check_status
-    second_check_status >> create_second_resource
-    second_check_status >> skip_second_task
+    retrieve_second_router >> check_second_router
+    check_second_router >> create_second_router
+    check_second_router >> skip_second_router
 
 # Instantiate the DAG
 dag_instance = import_data_to_maat()
