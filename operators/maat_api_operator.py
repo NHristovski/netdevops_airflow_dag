@@ -119,15 +119,16 @@ class MaatAPIOperator(BaseOperator):
                 # Push status code to XCom for downstream tasks
                 context['ti'].xcom_push(key='http_status_code', value=response.status_code)
 
-                if response.status_code == 404:
-                    self.log.warning(f"NotFound Error {response.status_code}")
-                    self.log.warning(f"Response body: {response.text}")
-                else:
-                    self.log.error(f"Server Error: {response.status_code}")
-                    self.log.error(f"Response body: {response.text}")
-                    raise AirflowException(
-                        f"HTTP {response.status_code} error from Maat API: {response.text}"
-                    )
+                if response.status_code >= 300:
+                    if response.status_code == 404:
+                        self.log.warning(f"NotFound Error {response.status_code}")
+                        self.log.warning(f"Response body: {response.text}")
+                    else:
+                        self.log.error(f"Server Error: {response.status_code}")
+                        self.log.error(f"Response body: {response.text}")
+                        raise AirflowException(
+                            f"HTTP {response.status_code} error from Maat API: {response.text}"
+                        )
 
                 # Parse response
                 response_data = None
