@@ -1,15 +1,15 @@
 {
-  "category": "network.vpn",
+  "category": "network.tunnel",
   "description": "MACVFR",
   "name": "MACVFR",
   "serviceCharacteristic": [
     {
-      "name": "tunnel-type",
-      "value": "IPsec"
+      "name": "router1_tunnel_ip",
+      "value": "10.10.10.1"
     },
     {
-      "name": "encryption",
-      "value": "AES-256"
+      "name": "router2_tunnel_ip",
+      "value": "10.10.10.2"
     }
   ],
   "supportingResource": [

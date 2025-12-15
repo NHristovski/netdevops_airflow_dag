@@ -121,9 +121,18 @@ def remote_ansible_setup_service_dag():
         print(f"Second router '{second_router}' found in Maat")
         print(f"Validations passed")
 
+        # Extract router IDs
+        first_router_id = first_response_list[0].get('id')
+        second_router_id = second_response_list[0].get('id')
+
+        print(f"First router ID: {first_router_id}")
+        print(f"Second router ID: {second_router_id}")
+
         return {
             'first_router': first_router,
             'second_router': second_router,
+            'first_router_id': first_router_id,
+            'second_router_id': second_router_id,
             'first_router_data': first_response_list[0],
             'second_router_data': second_response_list[0]
         }
@@ -185,83 +194,82 @@ def remote_ansible_setup_service_dag():
     run_remote_command_task = run_remote_command()
 
 
-    # @task
-    # def update_router_interface(**context):
-    #     """
-    #     Update the router in Maat with the new interface state after successful Ansible execution.
-    #     """
-    #     ti = context['ti']
-    #     # Get the router information from retrieve_router_info task
-    #     result = ti.xcom_pull(task_ids='retrieve_router_info')
-    #
-    #     # Extract router ID from the response
-    #     if result and 'response' in result:
-    #         response_list = result.get('response')
-    #         if response_list and len(response_list) == 1:
-    #             router = response_list[0]
-    #             router_id = router.get('id')
-    #             router_name = router.get('name')
-    #
-    #             print(f"Updating router '{router_name}' (ID: {router_id}) in Maat...")
-    #
-    #             # Get current parameters
-    #             interface_name = context['params']['interface']
-    #             interface_state = context['params']['state']
-    #
-    #             print(f"Setting interface {interface_name} to {interface_state}")
-    #
-    #             # Get existing resource characteristics
-    #             resource_characteristics = router.get('resourceCharacteristic', [])
-    #
-    #             # Create the characteristic name for this interface
-    #             interface_char_name = f"interface-{interface_name}"
-    #
-    #             # Update or add the interface characteristic
-    #             interface_found = False
-    #             for char in resource_characteristics:
-    #                 if char.get('name') == interface_char_name:
-    #                     # Update existing interface state
-    #                     char['value'] = interface_state
-    #                     interface_found = True
-    #                     print(f"Updated existing interface characteristic: {interface_char_name} = {interface_state}")
-    #                     break
-    #
-    #             if not interface_found:
-    #                 print("Error: Could not find interface to update")
-    #                 return {'updated': False, 'error': 'Invalid interface'}
-    #
-    #             # Now update the router in Maat using the operator
-    #             from operators.maat_api_operator import MaatResourceOperator
-    #
-    #             update_operator = MaatResourceOperator(
-    #                 task_id='update_router_in_maat',
-    #                 operation=OperationType.UPDATE,
-    #                 resource_id=router_id,
-    #                 resource_data={
-    #                     "resourceCharacteristic": resource_characteristics
-    #                 }
-    #             )
-    #
-    #             # Execute the update
-    #             update_result = update_operator.execute(context)
-    #             print(f"Successfully updated router in Maat")
-    #             print(f"Updated characteristic: {interface_char_name} = {interface_state}")
-    #
-    #             return {
-    #                 'router_id': router_id,
-    #                 'router_name': router_name,
-    #                 'interface': interface_name,
-    #                 'new_state': interface_state,
-    #                 'updated': True
-    #             }
-    #         else:
-    #             print("Error: Could not extract router information from response")
-    #             return {'updated': False, 'error': 'Invalid response format'}
-    #     else:
-    #         print("Error: No router information available")
-    #         return {'updated': False, 'error': 'No router data'}
-    #
-    # update_maat_task = update_router_interface()
+    @task
+    def create_service_in_maat(**context):
+        """
+        Create the service in Maat after successful Ansible execution.
+        """
+        ti = context['ti']
+
+        # Get service name from params
+        service_name = context['params']['service_name']
+
+        # Get router IDs from validation task
+        validation_result = ti.xcom_pull(task_ids='validate_params')
+        first_router_id = validation_result.get('first_router_id')
+        second_router_id = validation_result.get('second_router_id')
+        first_router_name = validation_result.get('first_router')
+        second_router_name = validation_result.get('second_router')
+
+        print(f"Creating service '{service_name}' in Maat...")
+        print(f"First router: {first_router_name} (ID: {first_router_id})")
+        print(f"Second router: {second_router_name} (ID: {second_router_id})")
+
+        # Create service data
+        service_data = {
+            "category": "network.tunnel",
+            "description": "MAC-VRF Service",
+            "name": service_name,
+            "serviceCharacteristic": [
+                {
+                    "name": "router1_tunnel_ip",
+                    "value": "10.10.10.1"
+                },
+                {
+                    "name": "router2_tunnel_ip",
+                    "value": "10.10.10.2"
+                }
+            ],
+            "supportingResource": [
+                {
+                    "id": first_router_id,
+                    "name": first_router_name,
+                    "@referredType": "PhysicalResource"
+                },
+                {
+                    "id": second_router_id,
+                    "name": second_router_name,
+                    "@referredType": "PhysicalResource"
+                }
+            ],
+            "@type": "Service",
+            "@schemaLocation": "https://bitbucket.software.geant.org/projects/OSSBSS/repos/maat-schema/raw/TMF638-ServiceInventory-v4-pionier.json"
+        }
+
+        # Create service using MaatServiceOperator
+        service_operator = MaatServiceOperator(
+            task_id='create_service_operator',
+            operation=OperationType.CREATE,
+            service_data=service_data
+        )
+
+        result = service_operator.execute(context)
+
+        if result and 'response' in result:
+            print(f"Service '{service_name}' created successfully in Maat")
+            return {
+                'created': True,
+                'service_name': service_name,
+                'service_data': result.get('response')
+            }
+        else:
+            print(f"Failed to create service '{service_name}' in Maat")
+            return {
+                'created': False,
+                'service_name': service_name
+            }
+
+    update_maat_task = create_service_in_maat()
     #
     # @task.branch(trigger_rule='all_done')
     # def check_update_result(**context):
@@ -286,7 +294,7 @@ def remote_ansible_setup_service_dag():
     #     print("Ansible command successful - checking Maat update result")
     #
     #     # Now check if Maat update was successful
-    #     update_result = ti.xcom_pull(task_ids='update_router_interface')
+    #     update_result = ti.xcom_pull(task_ids='create_service_in_maat')
     #
     #     print(f"Update result: {update_result}")
     #
@@ -379,7 +387,7 @@ def remote_ansible_setup_service_dag():
     # end = end_task()
 
     # Define task dependencies
-    validate_routers_task >> run_remote_command_task
+    validate_routers_task >> run_remote_command_task >> update_maat_task
     # run_remote_command_task >> update_maat_task >> check_update
 
 
