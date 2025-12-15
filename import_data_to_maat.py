@@ -89,7 +89,7 @@ def initial_maat_setup():
                 },
                 {
                     "name": "interface-ethernet-1/49",
-                    "value": "down"
+                    "value": "up"
                 },
                 {
                     "name": "interface-ethernet-1/50",
@@ -163,7 +163,7 @@ def initial_maat_setup():
                 },
                 {
                     "name": "interface-ethernet-1/49",
-                    "value": "down"
+                    "value": "up"
                 },
                 {
                     "name": "interface-ethernet-1/50",
