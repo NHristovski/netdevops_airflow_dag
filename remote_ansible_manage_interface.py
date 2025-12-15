@@ -24,7 +24,7 @@ from operators.maat_api_operator import (
         'interface': Param(
             default='ethernet-1/1',
             type='string',
-            enum=['ethernet-1/1', 'ethernet-1/49'],
+            enum=['ethernet-1/49', 'ethernet-1/50'],
             description='Interface to configure'
         ),
         'state': Param(
