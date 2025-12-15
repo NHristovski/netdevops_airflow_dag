@@ -312,7 +312,7 @@ def remote_ansible_setup_service_dag():
     @task()
     def run_remote_command_rollback(**context):
         """
-        Rollback task - revert interface to original state if Maat update fails.
+        Rollback task - deletes the configurations made by the Ansible playbook via SSH.
         """
         from airflow.providers.ssh.hooks.ssh import SSHHook
 
