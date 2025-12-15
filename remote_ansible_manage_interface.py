@@ -41,7 +41,7 @@ def ssh_remote_ansible_dag():
     """
     retrieve_router_info = MaatResourceOperator(
         task_id='retrieve_router_info',
-        operation=OperationType.GET_BY_NAME,
+        operation=OperationType.RETRIEVE_BY_NAME,
         resource_name='{{ params.router }}'
     )
 

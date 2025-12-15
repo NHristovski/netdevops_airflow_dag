@@ -28,7 +28,7 @@ class OperationType(str, Enum):
     LIST = 'list'
     CREATE = 'create'
     RETRIEVE = 'retrieve'
-    GET_BY_NAME = 'get_by_name'
+    RETRIEVE_BY_NAME = 'retrieve_by_name'
     UPDATE = 'update'
     DELETE = 'delete'
 
@@ -194,6 +194,7 @@ class MaatServiceOperator(MaatAPIOperator):
         *,
         operation: str,
         service_id: Optional[str] = None,
+        service_name: Optional[str] = None,
         service_data: Optional[Dict[str, Any]] = None,
         query_params: Optional[Dict[str, Any]] = None,
         **kwargs
@@ -218,6 +219,13 @@ class MaatServiceOperator(MaatAPIOperator):
             method = HTTPMethod.GET
             data = None
             qp = query_params or {}
+        elif operation == OperationType.RETRIEVE_BY_NAME:
+            if not service_name:
+                raise AirflowException("service_name is required for retrieve_by_name operation")
+            endpoint = f'/serviceInventoryManagement/v4.0.0/service?name={service_name}'
+            method = HTTPMethod.GET
+            data = None
+            qp = query_params or {}
         elif operation == OperationType.UPDATE:
             if not service_id:
                 raise AirflowException("service_id is required for update operation")
@@ -233,7 +241,7 @@ class MaatServiceOperator(MaatAPIOperator):
             data = None
             qp = {}
         else:
-            valid_operations = [op for op in OperationType if op != OperationType.GET_BY_NAME]
+            valid_operations = [op for op in OperationType if op not in [OperationType.RETRIEVE_BY_NAME]]
             raise AirflowException(
                 f"Invalid operation: {operation}. Must be one of: {[op.value for op in valid_operations]}"
             )
@@ -280,9 +288,9 @@ class MaatResourceOperator(MaatAPIOperator):
             method = HTTPMethod.POST
             data = resource_data
             qp = {}
-        elif operation == OperationType.GET_BY_NAME:
+        elif operation == OperationType.RETRIEVE_BY_NAME:
             if not resource_name:
-                raise AirflowException("resource_name is required for get_by_name operation")
+                raise AirflowException("resource_name is required for retrieve_by_name operation")
             endpoint = f'/resourceInventoryManagement/v4.0.0/resource?name={resource_name}'
             method = HTTPMethod.GET
             data = None

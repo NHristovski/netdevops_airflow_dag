@@ -27,7 +27,7 @@ def initial_maat_setup():
 
     retrieve_first_router = MaatResourceOperator(
         task_id='retrieve_first_router',
-        operation=OperationType.GET_BY_NAME,
+        operation=OperationType.RETRIEVE_BY_NAME,
         resource_name='srlinux-leaf1'
     )
 
@@ -104,7 +104,7 @@ def initial_maat_setup():
 
     retrieve_second_router = MaatResourceOperator(
         task_id='retrieve_second_router',
-        operation=OperationType.GET_BY_NAME,
+        operation=OperationType.RETRIEVE_BY_NAME,
         resource_name='srlinux-leaf2'
     )
 
