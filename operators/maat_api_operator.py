@@ -100,7 +100,6 @@ class MaatAPIOperator(BaseOperator):
         }
         request_headers.update(self.headers)
 
-        # Log the request
         self.log.info(f"Making {method} request to: {url}")
         self.log.info(f"Headers: {request_headers}")
         if self.query_params:
@@ -114,7 +113,6 @@ class MaatAPIOperator(BaseOperator):
 
         for attempt in range(1, max_retries + 1):
             try:
-                # Make the HTTP request
                 response = requests.request(
                     method=method,
                     url=url,
@@ -125,7 +123,6 @@ class MaatAPIOperator(BaseOperator):
                     timeout=60
                 )
 
-                # Log response
                 self.log.info(f"Response status code: {response.status_code}")
                 self.log.info(f"Response headers: {dict(response.headers)}")
 
@@ -140,7 +137,6 @@ class MaatAPIOperator(BaseOperator):
                             f"HTTP {response.status_code} error from Maat API: {response.text}"
                         )
 
-                # Parse response
                 response_data = None
                 if response.text:
                     try:
@@ -153,7 +149,6 @@ class MaatAPIOperator(BaseOperator):
                     self.log.info("Empty response body")
                     response_data = {"status": "success", "status_code": response.status_code}
 
-                # Always include status code in response data
                 if isinstance(response_data, dict):
                     response_data['http_status_code'] = response.status_code
                 else:
@@ -163,7 +158,6 @@ class MaatAPIOperator(BaseOperator):
                         'http_status_code': response.status_code
                     }
 
-                # Custom response validation
                 if self.response_check and not self.response_check(response_data):
                     raise AirflowException("Response check failed")
 

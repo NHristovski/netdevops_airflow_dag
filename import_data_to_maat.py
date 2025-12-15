@@ -88,11 +88,11 @@ def initial_maat_setup():
                     "value": "Site-A"
                 },
                 {
-                    "name": "interface-ethernet-1/1",
-                    "value": "up"
+                    "name": "interface-ethernet-1/49",
+                    "value": "down"
                 },
                 {
-                    "name": "interface-ethernet-1/49",
+                    "name": "interface-ethernet-1/50",
                     "value": "up"
                 }
             ],
@@ -162,11 +162,11 @@ def initial_maat_setup():
                     "value": "Site-B"
                 },
                 {
-                    "name": "interface-ethernet-1/1",
-                    "value": "up"
+                    "name": "interface-ethernet-1/49",
+                    "value": "down"
                 },
                 {
-                    "name": "interface-ethernet-1/49",
+                    "name": "interface-ethernet-1/50",
                     "value": "up"
                 }
             ],
@@ -197,16 +197,15 @@ def initial_maat_setup():
 
     skip_second_router = skip_second_router_creation()
 
-    # Define task dependencies
-    # First router branch
+    # First router
     retrieve_first_router >> check_first_router
     check_first_router >> create_first_router
     check_first_router >> skip_first_router
 
-    # Second router branch
+    # Second router
     retrieve_second_router >> check_second_router
     check_second_router >> create_second_router
     check_second_router >> skip_second_router
 
-# Instantiate the DAG
+
 dag_instance = initial_maat_setup()
