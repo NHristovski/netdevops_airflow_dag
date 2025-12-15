@@ -22,7 +22,7 @@ from operators.maat_api_operator import (
             description='Router to configure'
         ),
         'interface': Param(
-            default='ethernet-1/1',
+            default='ethernet-1/49',
             type='string',
             enum=['ethernet-1/49', 'ethernet-1/50'],
             description='Interface to configure'
