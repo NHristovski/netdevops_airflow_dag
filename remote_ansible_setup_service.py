@@ -255,6 +255,8 @@ def remote_ansible_setup_service_dag():
 
         result = service_operator.execute(context)
 
+        print('After service creation, result: ', result)
+
         if result and 'response' in result:
             print(f"Service '{service_name}' created successfully in Maat")
             return {
@@ -365,14 +367,14 @@ def remote_ansible_setup_service_dag():
             'status': 'completed'
         }
 
-    end = end_task()
+    success = end_task()
 
     # Define task dependencies
     validate_routers_task >> run_remote_command_task >> update_maat_task >> check_update
 
     # Branching after update check
     check_update >> rollback_task
-    check_update >> end
+    check_update >> success
 
 
 # Instantiate the DAG
