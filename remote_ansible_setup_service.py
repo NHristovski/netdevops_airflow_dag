@@ -255,9 +255,7 @@ def remote_ansible_setup_service_dag():
 
         result = service_operator.execute(context)
 
-        print('After service creation, result: ', result)
-
-        if result and 'response' in result:
+        if result and result.get('http_status_code') == 201:
             print(f"Service '{service_name}' created successfully in Maat")
             return {
                 'created': True,
