@@ -171,7 +171,7 @@ def remote_ansible_remove_service_dag():
                 'service_id': service_id
             }
 
-    delete_maat_task = delete_service_in_maat()
+    delete_service_in_maat_task = delete_service_in_maat()
 
 
     @task.branch(trigger_rule='all_done')
@@ -220,6 +220,8 @@ def remote_ansible_remove_service_dag():
         Rollback task - creates the service again via Ansible if deletion failed.
         """
         from airflow.providers.ssh.hooks.ssh import SSHHook
+
+        ti = context['ti']
 
         # Get router names from validation task
         validation_result = ti.xcom_pull(task_ids='validate_params')
@@ -279,11 +281,11 @@ def remote_ansible_remove_service_dag():
     success = end_task()
 
     # Define task dependencies
-    validate_service_task >> run_remote_command_task >> delete_maat_task >> check_delete_result
+    validate_service_task >> run_remote_command_task >> delete_service_in_maat_task >> check_delete
 
     # Branching after delete check
-    check_delete_result >> rollback_task
-    check_delete_result >> success
+    check_delete >> rollback_task
+    check_delete >> success
 
 # Instantiate the DAG
 dag_instance = remote_ansible_remove_service_dag()
